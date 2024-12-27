@@ -14,46 +14,46 @@ namespace lvk {
 #define msw std::map<std::string, std::unique_ptr<window::Window>>
 
 class Lvk {
-    // Controle geral da aplicação
+  // Controle geral da aplicação
 public:
-    Lvk();
+  Lvk();
 
 private:
-    void init();
+  void init();
 
-    /**
-     * Vulkan's niche is to be explicit about every operation to avoid mistakes
-     */
-    void init_vulkan();
+  /**
+   * Vulkan's niche is to be explicit about every operation to avoid mistakes
+   */
+  void init_vulkan();
 
-    // The instance is the connection between your application and the Vulkan
-    // library and creating it involves specifying some details about your
-    // application to the driver.
-    void create_instance();
-    void create_debug_messenger();
-
-private:
-    VkInstance instance;
-    VkDebugUtilsMessengerEXT debug_messenger;
-
-public:
-    void run();
-    ~Lvk();
+  // The instance is the connection between your application and the Vulkan
+  // library and creating it involves specifying some details about your
+  // application to the driver.
+  void create_instance();
+  void create_debug_messenger();
 
 private:
-    void clean_up();
+  VkInstance instance;
+  VkDebugUtilsMessengerEXT debug_messenger;
 
-    // Sistema de janelas
 public:
-    void add_window(std::string name, uint32_t width, uint32_t height);
-    void remove_window(const std::string &name);
+  void run();
+  ~Lvk();
 
 private:
-    std::map<std::string, std::unique_ptr<window::Window>> windows;
+  void clean_up();
 
-    // Formas de acessar a Window
+  // Sistema de janelas
 public:
-    void set_background_color(const std::string &name, float *background_color);
+  void add_window(std::string name, uint32_t width, uint32_t height);
+  void remove_window(const std::string &name);
+
+private:
+  std::map<std::string, std::unique_ptr<window::Window>> windows;
+
+  // Formas de acessar a Window
+public:
+  void set_background_color(const std::string &name, float *background_color);
 };
 } // namespace lvk
 
