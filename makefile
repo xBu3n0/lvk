@@ -16,7 +16,7 @@ DEP_FILES = $(OBJ_FILES:.o=.d)
 
 # Flags de compilação
 CXX = g++
-CXXFLAGS = -Wall -Wextra -O2 -std=c++17
+CXXFLAGS = -Wall -Wextra -O2 -std=c++20
 LDFLAGS = -lglfw -lvulkan -lGL
 
 run: $(EXEC)
@@ -28,12 +28,12 @@ $(EXEC): $(OBJ_FILES)
 
 # Regra para compilar os arquivos .cpp para .o
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.cpp $(BUILD_DIR)/%.d
-	@mkdir -p $(dir $@)  # Cria o diretório para o arquivo objeto
+	@mkdir -p $(dir $@)    # Cria o diretório para o arquivo objeto
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 # Regra para gerar as dependências (.d)
 $(BUILD_DIR)/%.d: $(SRC_DIR)/%.cpp
-	@mkdir -p $(dir $@)  # Cria o diretório para o arquivo de dependência
+	@mkdir -p $(dir $@)    # Cria o diretório para o arquivo de dependência
 	$(CXX) -MM $(CXXFLAGS) $< > $@
 
 # Limpeza dos arquivos de compilação

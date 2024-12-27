@@ -1,4 +1,6 @@
-#include "Vlk/Vlk.hpp"
+#include "Lvk/Lvk.hpp"
+#include <cstdlib>
+#include <iostream>
 
 float colors[][4] = {
     {0.6f, 0.0f, 0.0f, 1.0f},
@@ -11,8 +13,9 @@ float colors[][4] = {
 };
 
 int main() {
-    vlk::Vlk app;
+    lvk::Lvk app;
 
+    std::cout << "Adding windows" << std::endl;
     app.add_window("teste 1", 800, 600);
     app.add_window("teste 2", 800, 600);
     app.add_window("teste 3", 800, 600);
@@ -21,6 +24,7 @@ int main() {
     app.add_window("teste 6", 800, 600);
     app.add_window("teste 7", 800, 600);
 
+    std::cout << "Setting background colors" << std::endl;
     app.set_background_color("teste 1", colors[0]);
     app.set_background_color("teste 2", colors[1]);
     app.set_background_color("teste 3", colors[2]);
@@ -29,9 +33,15 @@ int main() {
     app.set_background_color("teste 6", colors[5]);
     app.set_background_color("teste 7", colors[6]);
 
-    app.run();
+    std::cout << "Running" << std::endl;
+    try {
+        app.run();
+    } catch (const std::exception &e) {
+        std::cerr << e.what() << std::endl;
 
-    app.clean_up();
+        return EXIT_FAILURE;
+    }
 
-    return 0;
+    std::cout << "Exiting" << std::endl;
+    return EXIT_SUCCESS;
 }
