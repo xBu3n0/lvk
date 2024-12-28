@@ -1,12 +1,13 @@
 #include "utils.hpp"
 
+#include <iostream>
 #include <optional>
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
+#include <cstdint>
 #include <set>
 #include <string>
-#include <cstdint>
 #include <vector>
 
 std::set<std::string> extensions_available;
@@ -16,6 +17,7 @@ extern const bool enable_validation_layer;
 
 /** UTILS */
 namespace utils {
+namespace extension {
 void get_extensions() {
   uint32_t extensionCount = 0;
   vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
@@ -28,40 +30,6 @@ void get_extensions() {
     extensions_available.insert(extension.extensionName);
   }
 }
-
-bool has_extensions(std::vector<const char *> extensions, const size_t count) {
-  for (size_t i = 0; i < count; ++i) {
-    if (extensions_available.find(extensions[i]) ==
-        extensions_available.end()) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
-void get_layers() {
-  uint32_t layerCount = 0;
-  vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
-
-  std::vector<VkLayerProperties> layers(layerCount);
-  vkEnumerateInstanceLayerProperties(&layerCount, layers.data());
-
-  for (const auto &layer : layers) {
-    layers_available.insert(layer.layerName);
-  }
-}
-
-bool check_validation_layers(std::vector<const char *> &validation_layers) {
-  for (const auto &layer : validation_layers) {
-    if (layers_available.find(layer) == layers_available.end()) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
 std::vector<const char *> get_glfw_extensions() {
   uint32_t glfwExtensionCount = 0;
   const char **glfwExtensions;
@@ -79,40 +47,48 @@ std::vector<const char *> get_glfw_extensions() {
   return extensions;
 }
 
+bool has_extensions(std::vector<const char *> extensions, const size_t count) {
+  for (size_t i = 0; i < count; ++i) {
+    if (extensions_available.find(extensions[i]) ==
+        extensions_available.end()) {
+      return false;
+    }
+  }
+
+  return true;
+}
+} // namespace extension
+
+namespace layer {
+void get_layers() {
+  uint32_t layerCount = 0;
+  vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
+
+  std::vector<VkLayerProperties> layers(layerCount);
+  vkEnumerateInstanceLayerProperties(&layerCount, layers.data());
+
+  for (const auto &layer : layers) {
+    layers_available.insert(layer.layerName);
+  }
+}
 std::vector<const char *> get_validation_layers() {
   std::vector<const char *> validation_layers = {"VK_LAYER_KHRONOS_validation"};
 
   return validation_layers;
 }
 
-QueueFamilyIndices find_queue_families(VkPhysicalDevice device,
-                                       VkSurfaceKHR surface) {
-  QueueFamilyIndices indices;
-
-  uint32_t queueFamilyCount = 0;
-  vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
-
-  std::vector<VkQueueFamilyProperties> queue_families(queueFamilyCount);
-  vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount,
-                                           queue_families.data());
-
-  for (size_t i = 0; i < queue_families.size(); ++i) {
-    const auto &queue_family = queue_families[i];
-
-    VkBool32 present_support = false;
-    vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, &present_support);
-
-    if ((queue_family.queueFlags & VK_QUEUE_GRAPHICS_BIT) && present_support) {
-      indices.graphics_family = i;
-      indices.present_family = i;
-
-      break;
+bool check_validation_layers(std::vector<const char *> &validation_layers) {
+  for (const auto &layer : validation_layers) {
+    if (layers_available.find(layer) == layers_available.end()) {
+      return false;
     }
   }
 
-  return indices;
+  return true;
 }
+} // namespace layer
 
+namespace messenger {
 VkResult create_debug_utils_messenger_ext(
     VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT *pCreateInfo,
     const VkAllocationCallbacks *pAllocator,
@@ -135,7 +111,45 @@ void destroy_debug_utils_messenger_ext(
     func(instance, debugMessenger, pAllocator);
   }
 }
+} // namespace messenger
 
+namespace queue {
+QueueFamilyIndices find_queue_families(VkPhysicalDevice device,
+                                       VkSurfaceKHR surface) {
+  QueueFamilyIndices indices;
+
+  uint32_t queueFamilyCount = 0;
+  vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
+
+  std::vector<VkQueueFamilyProperties> queue_families(queueFamilyCount);
+  vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount,
+                                           queue_families.data());
+
+  std::cout << "Queue family size: " << queue_families.size() << std::endl;
+  for (size_t i = 0; i < queue_families.size(); ++i) {
+    const auto &queue_family = queue_families[i];
+
+    VkBool32 present_support = false;
+    vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, &present_support);
+
+    if ((queue_family.queueFlags & VK_QUEUE_GRAPHICS_BIT)) {
+      indices.graphics_family = i;
+    }
+
+    if (present_support) {
+      indices.present_family = i;
+    }
+
+    if (indices.is_complete()) {
+      break;
+    }
+  }
+
+  return indices;
+}
+} // namespace queue
+
+namespace device {
 bool is_device_suitable(VkPhysicalDevice device, VkSurfaceKHR surface) {
   VkPhysicalDeviceProperties device_properties;
   vkGetPhysicalDeviceProperties(device, &device_properties);
@@ -143,8 +157,9 @@ bool is_device_suitable(VkPhysicalDevice device, VkSurfaceKHR surface) {
   VkPhysicalDeviceFeatures device_features;
   vkGetPhysicalDeviceFeatures(device, &device_features);
 
-  QueueFamilyIndices indices = utils::find_queue_families(device, surface);
+  QueueFamilyIndices indices = queue::find_queue_families(device, surface);
 
   return indices.is_complete();
 }
+} // namespace device
 } // namespace utils

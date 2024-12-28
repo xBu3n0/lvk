@@ -4,6 +4,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <optional>
+#include <set>
 #include <vector>
 #include <vulkan/vulkan_core.h>
 
@@ -17,8 +18,8 @@ namespace lvk {
 Lvk::Lvk() {
   Lvk::init_glfw();
 
-  utils::get_extensions();
-  utils::get_layers();
+  utils::extension::get_extensions();
+  utils::layer::get_layers();
 
   std::cout << "Lvk::init_vulkan()" << std::endl;
   Lvk::init_vulkan();
@@ -62,9 +63,9 @@ void Lvk::create_instance() {
   createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
   createInfo.pApplicationInfo = &appInfo;
 
-  std::vector<const char *> extensions = utils::get_glfw_extensions();
+  std::vector<const char *> extensions = utils::extension::get_glfw_extensions();
 
-  if (!utils::has_extensions(extensions, extensions.size())) {
+  if (!utils::extension::has_extensions(extensions, extensions.size())) {
     std::cerr << "Missing extensions" << std::endl;
     exit(1);
   }
@@ -73,12 +74,12 @@ void Lvk::create_instance() {
   createInfo.ppEnabledExtensionNames = extensions.data();
 
   // Global validation layers enabled
-  std::vector<const char *> validation_layers = utils::get_validation_layers();
+  std::vector<const char *> validation_layers = utils::layer::get_validation_layers();
 
   if (enable_validation_layer) {
     std::cout << "Validation layers enabled" << std::endl;
 
-    if (!utils::check_validation_layers(validation_layers)) {
+    if (!utils::layer::check_validation_layers(validation_layers)) {
       std::cerr << "Missing validation layers" << std::endl;
       exit(1);
     }
@@ -128,7 +129,7 @@ void Lvk::create_debug_messenger() {
   createInfo.pfnUserCallback = debugCallback;
   createInfo.pUserData = nullptr;
 
-  if (utils::create_debug_utils_messenger_ext(instance, &createInfo, nullptr,
+  if (utils::messenger::create_debug_utils_messenger_ext(instance, &createInfo, nullptr,
                                               &this->debug_messenger) !=
       VK_SUCCESS) {
     throw std::runtime_error("failed to set up debug messenger!");
@@ -154,7 +155,7 @@ void Lvk::pick_physical_device() {
   vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data());
 
   for (const auto &device : devices) {
-    if (utils::is_device_suitable(device, this->surface)) {
+    if (utils::device::is_device_suitable(device, this->surface)) {
       std::cout << "Device " << device << " suitable" << std::endl;
       this->physical_device = device;
       break;
@@ -168,16 +169,22 @@ void Lvk::pick_physical_device() {
 
 void Lvk::create_logical_device() {
   QueueFamilyIndices indices =
-      utils::find_queue_families(this->physical_device, this->surface);
+      utils::queue::find_queue_families(this->physical_device, this->surface);
 
-  /** Describes the number of queues we want for a single queue family */
-  VkDeviceQueueCreateInfo queueCreateInfo{};
-  queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-  queueCreateInfo.queueFamilyIndex = indices.graphics_family.value();
-  queueCreateInfo.queueCount = 1;
+  std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
+  std::set<uint32_t> uniqueQueueFamilies = {indices.graphics_family.value(),
+                                            indices.present_family.value()};
 
-  float queue_priority = 1.0f;
-  queueCreateInfo.pQueuePriorities = &queue_priority;
+  float queuePriority = 1.0f;
+  for (uint32_t queueFamily : uniqueQueueFamilies) {
+    VkDeviceQueueCreateInfo queueCreateInfo{};
+    queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+    queueCreateInfo.queueFamilyIndex = queueFamily;
+    queueCreateInfo.queueCount = 1;
+    queueCreateInfo.pQueuePriorities = &queuePriority;
+
+    queueCreateInfos.push_back(queueCreateInfo);
+  }
 
   /** Specify is the set of device features that we'll be using. */
   VkPhysicalDeviceFeatures device_features{};
@@ -186,8 +193,9 @@ void Lvk::create_logical_device() {
   VkDeviceCreateInfo create_info{};
   create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
 
-  create_info.pQueueCreateInfos = &queueCreateInfo;
-  create_info.queueCreateInfoCount = 1;
+  create_info.queueCreateInfoCount =
+      static_cast<uint32_t>(queueCreateInfos.size());
+  create_info.pQueueCreateInfos = queueCreateInfos.data();
 
   create_info.pEnabledFeatures = &device_features;
 
@@ -202,6 +210,11 @@ void Lvk::create_logical_device() {
   /** Get the queue of the created device */
   vkGetDeviceQueue(device, indices.graphics_family.value(), 0,
                    &this->graphics_queue);
+  vkGetDeviceQueue(device, indices.present_family.value(), 0,
+                   &this->present_queue);
+
+  std::cout << this->graphics_queue << std::endl;
+  std::cout << this->present_queue << std::endl;
 }
 
 // void Lvk::add_window(std::string name, uint32_t width, uint32_t height) {
@@ -243,7 +256,7 @@ void Lvk::clean_up() {
   vkDestroySurfaceKHR(this->instance, this->surface, nullptr);
 
   if (enable_validation_layer) {
-    utils::destroy_debug_utils_messenger_ext(this->instance,
+    utils::messenger::destroy_debug_utils_messenger_ext(this->instance,
                                              this->debug_messenger, nullptr);
   }
 

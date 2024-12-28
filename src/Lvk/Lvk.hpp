@@ -38,43 +38,43 @@ private:
 private:
   // Instance is the connection between your application and the Vulkan
   VkInstance instance;
-  //
+  // Debug messenger is used to receive debug messages from the Vulkan
   VkDebugUtilsMessengerEXT debug_messenger;
-  //
+  // Surface is the connection between the window system and the instance
   VkSurfaceKHR surface;
 
-  //
-  VkQueue present_queue;
-  //
+  /** Device that is used for the rendering */
+  // physical device to interface with the hardware
   VkPhysicalDevice physical_device = VK_NULL_HANDLE;
-
   // logical device to interface with the `physical device`
   VkDevice device;
 
+  /** Queues selected of the logical device */
+  // Queue of the present device
+  VkQueue present_queue;
   // Queue of the logical device
   VkQueue graphics_queue;
 
 public:
-  //
+  // Run the application
   void run();
-  //
+  // Destroy the vulkan resources and the GLFW
   ~Lvk();
 
 private:
   // Clean up the resources (GLFW and Vulkan)
   void clean_up();
 
-
   // Fixed window until the implementation of multiple windows
   GLFWwindow *window;
 
-//   /** Windows system */
-// public:
-//   void add_window(std::string name, uint32_t width, uint32_t height);
-//   void remove_window(const std::string &name);
+  //   /** Windows system */
+  // public:
+  //   void add_window(std::string name, uint32_t width, uint32_t height);
+  //   void remove_window(const std::string &name);
 
-// private:
-//   std::map<std::string, std::unique_ptr<window::Window>> windows;
+  // private:
+  //   std::map<std::string, std::unique_ptr<window::Window>> windows;
 };
 } // namespace lvk
 

@@ -26,31 +26,41 @@ const bool enable_validation_layer = true;
 
 /** UTILS */
 namespace utils {
+namespace extension {
 void get_extensions();
+std::vector<const char *> get_glfw_extensions();
 
 bool has_extensions(std::vector<const char *> extensions, const size_t count);
 
-void get_layers();
+} // namespace extension
 
-bool check_validation_layers(std::vector<const char *> &validation_layers);
-
-std::vector<const char *> get_glfw_extensions();
-
-std::vector<const char *> get_validation_layers();
-
-QueueFamilyIndices find_queue_families(VkPhysicalDevice device,
-                                       VkSurfaceKHR surface);
-
+namespace messenger {
 VkResult create_debug_utils_messenger_ext(
     VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT *pCreateInfo,
     const VkAllocationCallbacks *pAllocator,
     VkDebugUtilsMessengerEXT *pDebugMessenger);
 
-void destroy_debug_utils_messenger_ext(
-    VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger,
-    const VkAllocationCallbacks *pAllocator);
+void destroy_debug_utils_messenger_ext(VkInstance instance,
+                                       VkDebugUtilsMessengerEXT debugMessenger,
+                                       const VkAllocationCallbacks *pAllocator);
+} // namespace messenger
 
+namespace layer {
+void get_layers();
+std::vector<const char *> get_validation_layers();
+
+bool check_validation_layers(std::vector<const char *> &validation_layers);
+} // namespace layer
+
+namespace queue {
+QueueFamilyIndices find_queue_families(VkPhysicalDevice device,
+                                       VkSurfaceKHR surface);
+
+} // namespace queue
+
+namespace device {
 bool is_device_suitable(VkPhysicalDevice device, VkSurfaceKHR surface);
+} // namespace device
 } // namespace utils
 
 #endif
