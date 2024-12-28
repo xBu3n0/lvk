@@ -1,122 +1,21 @@
 #include "Lvk.hpp"
 
+#include <GLFW/glfw3.h>
 #include <cstdlib>
 #include <iostream>
-#include <memory>
-#include <set>
-#include <stack>
+#include <optional>
 #include <vector>
 #include <vulkan/vulkan_core.h>
 
-std::set<std::string> extensions_available;
-std::set<std::string> layers_available;
+#include "../utils/utils.hpp"
 
 /** Validation layers */
-#ifdef NDEBUG
-const bool enable_validation_layer = false;
-#else
-const bool enable_validation_layer = true;
-#endif
-
-/** UTILS */
-namespace utils {
-void get_extensions() {
-  uint32_t extensionCount = 0;
-  vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
-
-  std::vector<VkExtensionProperties> extensions(extensionCount);
-  vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount,
-                                         extensions.data());
-
-  for (const auto &extension : extensions) {
-    extensions_available.insert(extension.extensionName);
-  }
-}
-
-void get_layers() {
-  uint32_t layerCount = 0;
-  vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
-
-  std::vector<VkLayerProperties> layers(layerCount);
-  vkEnumerateInstanceLayerProperties(&layerCount, layers.data());
-
-  for (const auto &layer : layers) {
-    layers_available.insert(layer.layerName);
-  }
-}
-
-bool check_validation_layers(std::vector<const char *> &validation_layers) {
-  for (const auto &layer : validation_layers) {
-    if (layers_available.find(layer) == layers_available.end()) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
-std::vector<const char *> get_glfw_extensions() {
-  uint32_t glfwExtensionCount = 0;
-  const char **glfwExtensions;
-
-  // Return the extensions that glfw needs to work with Vulkan
-  glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
-
-  std::vector<const char *> extensions(glfwExtensions,
-                                       glfwExtensions + glfwExtensionCount);
-
-  if (enable_validation_layer) {
-    extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
-  }
-
-  return extensions;
-}
-
-std::vector<const char *> get_validation_layers() {
-  std::vector<const char *> validation_layers = {"VK_LAYER_KHRONOS_validation"};
-
-  return validation_layers;
-}
-
-VkResult create_debug_utils_messenger_ext(
-    VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT *pCreateInfo,
-    const VkAllocationCallbacks *pAllocator,
-    VkDebugUtilsMessengerEXT *pDebugMessenger) {
-  auto func = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(
-      instance, "vkCreateDebugUtilsMessengerEXT");
-  if (func != nullptr) {
-    return func(instance, pCreateInfo, pAllocator, pDebugMessenger);
-  } else {
-    return VK_ERROR_EXTENSION_NOT_PRESENT;
-  }
-}
-
-void destroy_debug_utils_messenger_ext(
-    VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger,
-    const VkAllocationCallbacks *pAllocator) {
-  auto func = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(
-      instance, "vkDestroyDebugUtilsMessengerEXT");
-  if (func != nullptr) {
-    func(instance, debugMessenger, pAllocator);
-  }
-}
-} // namespace utils
+extern const bool enable_validation_layer;
 
 /** VLK */
 namespace lvk {
-bool has_extensions(std::vector<const char *> extensions, const size_t count) {
-  for (size_t i = 0; i < count; ++i) {
-    if (extensions_available.find(extensions[i]) ==
-        extensions_available.end()) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
 Lvk::Lvk() {
-  Lvk::init();
+  Lvk::init_glfw();
 
   utils::get_extensions();
   utils::get_layers();
@@ -125,18 +24,23 @@ Lvk::Lvk() {
   Lvk::init_vulkan();
 }
 
-void Lvk::init() {
+void Lvk::init_glfw() {
   if (!glfwInit()) {
     exit(1);
   }
 
   glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
   glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+
+  this->window = glfwCreateWindow(800, 600, "Vulkan window", nullptr, nullptr);
 }
 
 void Lvk::init_vulkan() {
   Lvk::create_instance();
   Lvk::create_debug_messenger();
+  Lvk::create_surface();
+  Lvk::pick_physical_device();
+  Lvk::create_logical_device();
 }
 
 void Lvk::create_instance() {
@@ -160,7 +64,7 @@ void Lvk::create_instance() {
 
   std::vector<const char *> extensions = utils::get_glfw_extensions();
 
-  if (!has_extensions(extensions, extensions.size())) {
+  if (!utils::has_extensions(extensions, extensions.size())) {
     std::cerr << "Missing extensions" << std::endl;
     exit(1);
   }
@@ -231,38 +135,113 @@ void Lvk::create_debug_messenger() {
   }
 }
 
-void Lvk::add_window(std::string name, uint32_t width, uint32_t height) {
-  this->windows.insert(
-      {name, std::make_unique<window::Window>(name, width, height)});
-}
-
-void Lvk::remove_window(const std::string &name) { this->windows.erase(name); }
-
-void Lvk::set_background_color(const std::string &name,
-                               float background_color[4]) {
-  this->windows[name]->set_background_color(background_color);
-}
-
-void Lvk::run() {
-  std::stack<std::string> to_remove;
-
-  while (!this->windows.empty()) {
-    for (const auto &window : this->windows) {
-      window.second->update();
-
-      if (window.second->should_close()) {
-        to_remove.push(window.first);
-      }
-    }
-
-    while (!to_remove.empty()) {
-      this->remove_window(to_remove.top());
-      to_remove.pop();
-    }
+void Lvk::create_surface() {
+  if (glfwCreateWindowSurface(this->instance, window, nullptr,
+                              &this->surface) != VK_SUCCESS) {
+    throw std::runtime_error("failed to create window surface!");
   }
 }
 
+void Lvk::pick_physical_device() {
+  uint32_t deviceCount = 0;
+  vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
+
+  if (deviceCount == 0) {
+    throw std::runtime_error("failed to find GPUs with Vulkan support!");
+  }
+
+  std::vector<VkPhysicalDevice> devices(deviceCount);
+  vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data());
+
+  for (const auto &device : devices) {
+    if (utils::is_device_suitable(device, this->surface)) {
+      std::cout << "Device " << device << " suitable" << std::endl;
+      this->physical_device = device;
+      break;
+    }
+  }
+
+  if (this->physical_device == VK_NULL_HANDLE) {
+    throw std::runtime_error("failed to find a suitable GPU!");
+  }
+}
+
+void Lvk::create_logical_device() {
+  QueueFamilyIndices indices =
+      utils::find_queue_families(this->physical_device, this->surface);
+
+  /** Describes the number of queues we want for a single queue family */
+  VkDeviceQueueCreateInfo queueCreateInfo{};
+  queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+  queueCreateInfo.queueFamilyIndex = indices.graphics_family.value();
+  queueCreateInfo.queueCount = 1;
+
+  float queue_priority = 1.0f;
+  queueCreateInfo.pQueuePriorities = &queue_priority;
+
+  /** Specify is the set of device features that we'll be using. */
+  VkPhysicalDeviceFeatures device_features{};
+
+  /** Create the logical device */
+  VkDeviceCreateInfo create_info{};
+  create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+
+  create_info.pQueueCreateInfos = &queueCreateInfo;
+  create_info.queueCreateInfoCount = 1;
+
+  create_info.pEnabledFeatures = &device_features;
+
+  /** Skip device specific validation layers (Citar REF) */
+  //
+
+  if (vkCreateDevice(this->physical_device, &create_info, nullptr,
+                     &this->device) != VK_SUCCESS) {
+    throw std::runtime_error("failed to create logical device!");
+  }
+
+  /** Get the queue of the created device */
+  vkGetDeviceQueue(device, indices.graphics_family.value(), 0,
+                   &this->graphics_queue);
+}
+
+// void Lvk::add_window(std::string name, uint32_t width, uint32_t height) {
+//   this->windows.insert(
+//       {name, std::make_unique<window::Window>(name, width, height)});
+// }
+
+// void Lvk::remove_window(const std::string &name) { this->windows.erase(name);
+// }
+
+void Lvk::run() {
+  while (!glfwWindowShouldClose(this->window)) {
+    glfwPollEvents();
+  }
+}
+
+// void Lvk::run() {
+//   std::stack<std::string> to_remove;
+
+//   while (!this->windows.empty()) {
+//     for (const auto &window : this->windows) {
+//       window.second->update();
+
+//       if (window.second->should_close()) {
+//         to_remove.push(window.first);
+//       }
+//     }
+
+//     while (!to_remove.empty()) {
+//       this->remove_window(to_remove.top());
+//       to_remove.pop();
+//     }
+//   }
+// }
+
 void Lvk::clean_up() {
+  vkDestroyDevice(this->device, nullptr);
+
+  vkDestroySurfaceKHR(this->instance, this->surface, nullptr);
+
   if (enable_validation_layer) {
     utils::destroy_debug_utils_messenger_ext(this->instance,
                                              this->debug_messenger, nullptr);
@@ -271,7 +250,8 @@ void Lvk::clean_up() {
   vkDestroyInstance(instance, nullptr);
 
   // Finalize the windows
-  this->windows.clear();
+  // this->windows.clear();
+  glfwDestroyWindow(this->window);
 
   glfwTerminate();
 }
