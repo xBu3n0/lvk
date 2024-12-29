@@ -35,9 +35,13 @@ private:
   //
   void create_image_views();
   //
+  VkShaderModule create_shader_module(const std::vector<char> &code);
+  //
+  void create_render_pass();
+  //
   void create_graphics_pipeline();
   //
-  VkShaderModule create_shader_module(const std::vector<char> &code);
+  void create_framebuffers();
 
 private:
   /** Instance of the application */
@@ -72,6 +76,12 @@ private:
 
   VkFormat swap_chain_image_format;
   VkExtent2D swap_chain_extent;
+
+  VkRenderPass render_pass;
+  VkPipelineLayout pipeline_layout;
+  VkPipeline graphics_pipeline;
+
+  std::vector<VkFramebuffer> swap_chain_framebuffers;
 
 public:
   // Run the application
