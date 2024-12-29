@@ -2,6 +2,7 @@
 #define _VLK_HPP
 
 // Load the Vulkan header
+#include <vector>
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
@@ -30,8 +31,10 @@ private:
   //
   void create_logical_device();
   //
+  void create_swap_chain();
 
 private:
+  /** Instance of the application */
   // Instance is the connection between your application and the Vulkan
   VkInstance instance;
   // Debug messenger is used to receive debug messages from the Vulkan
@@ -52,8 +55,15 @@ private:
   VkQueue graphics_queue;
 
   /** Swap chain */
-  // The general purpose of the swap chain is to synchronize the presentation of
-  // images with the refresh rate of the screen
+  // The primary purpose of the swap chain is to synchronize the presentation of
+  // images with the screen's refresh rate and to configure the format and
+  // color of the images.
+  VkSwapchainKHR swap_chain;
+
+  // Store the handlers
+  std::vector<VkImage> swapChainImages;
+  VkFormat swap_chain_image_format;
+  VkExtent2D swap_chain_extent;
 
 public:
   // Run the application

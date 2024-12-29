@@ -41,11 +41,23 @@ void Lvk::init_glfw() {
 }
 
 void Lvk::init_vulkan() {
+  std::cout << "Lvk::create_instance()" << std::endl;
   Lvk::create_instance();
+
+  std::cout << "Lvk::create_debug_messenger()" << std::endl;
   Lvk::create_debug_messenger();
+
+  std::cout << "Lvk::create_surface()" << std::endl;
   Lvk::create_surface();
+
+  std::cout << "Lvk::pick_physical_device()" << std::endl;
   Lvk::pick_physical_device();
+
+  std::cout << "Lvk::create_logical_device()" << std::endl;
   Lvk::create_logical_device();
+
+  std::cout << "Lvk::create_swap_chain()" << std::endl;
+  Lvk::create_swap_chain();
 }
 
 void Lvk::create_instance() {
@@ -233,6 +245,88 @@ void Lvk::create_logical_device() {
   std::cout << this->present_queue << std::endl;
 }
 
+void Lvk::create_swap_chain() {
+  /** Creation of the swapchain */
+  SwapChainSupportDetails swap_chain_support =
+      utils::swapchain::query_swap_chain_support(this->surface,
+                                                 this->physical_device);
+
+  VkSurfaceFormatKHR surface_format =
+      utils::swapchain::choose_swap_surface_format(swap_chain_support.formats);
+  VkPresentModeKHR present_mode = utils::swapchain::choose_swap_present_mode(
+      swap_chain_support.present_modes);
+
+  int width, height;
+  glfwGetWindowSize(this->window, &width, &height);
+
+  VkExtent2D extent = utils::swapchain::choose_swap_extent(
+      swap_chain_support.capabilities, width, height);
+
+  /** How many images we would like to have in the swap chain */
+  uint32_t image_count = swap_chain_support.capabilities.minImageCount + 1;
+
+  if (swap_chain_support.capabilities.maxImageCount > 0 &&
+      image_count > swap_chain_support.capabilities.maxImageCount) {
+    image_count = swap_chain_support.capabilities.maxImageCount;
+  }
+
+  /** Creation of the structure */
+  VkSwapchainCreateInfoKHR create_info{};
+  create_info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+  create_info.surface = surface;
+
+  create_info.minImageCount = image_count;
+  create_info.imageFormat = surface_format.format;
+  create_info.imageColorSpace = surface_format.colorSpace;
+  create_info.imageExtent = extent;
+  create_info.imageArrayLayers = 1;
+  create_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+
+  QueueFamilyIndices indices =
+      utils::queue::find_queue_families(this->physical_device, this->surface);
+  uint32_t queueFamilyIndices[] = {indices.graphics_family.value(),
+                                   indices.present_family.value()};
+
+  /** Handle swap chain images that will be used across multiple queue families
+   */
+  if (indices.graphics_family != indices.present_family) {
+    create_info.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+    create_info.queueFamilyIndexCount = 2;
+    create_info.pQueueFamilyIndices = queueFamilyIndices;
+  } else {
+    create_info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    create_info.queueFamilyIndexCount = 0;
+    create_info.pQueueFamilyIndices = nullptr;
+  }
+
+  /** To specify that you do not want any transformation, simply specify the
+   * current transformation. */
+  create_info.preTransform = swap_chain_support.capabilities.currentTransform;
+
+  /** The compositeAlpha field specifies if the alpha channel should be used for
+   * blending with other windows in the window system. You'll almost always want
+   * to simply ignore the alpha channel, hence
+   * VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR. (play with this after) */
+  create_info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+  create_info.presentMode = present_mode;
+  create_info.clipped = VK_TRUE;
+  create_info.oldSwapchain = VK_NULL_HANDLE;
+
+  if (vkCreateSwapchainKHR(this->device, &create_info, nullptr,
+                           &this->swap_chain) != VK_SUCCESS) {
+    throw std::runtime_error("failed to create swap chain!");
+  }
+
+  vkGetSwapchainImagesKHR(this->device, this->swap_chain, &image_count,
+                          nullptr);
+  swapChainImages.resize(image_count);
+  vkGetSwapchainImagesKHR(this->device, this->swap_chain, &image_count,
+                          swapChainImages.data());
+
+  this->swap_chain_image_format = surface_format.format;
+  this->swap_chain_extent = extent;
+}
+
 void Lvk::run() {
   while (!glfwWindowShouldClose(this->window)) {
     glfwPollEvents();
@@ -240,6 +334,8 @@ void Lvk::run() {
 }
 
 void Lvk::clean_up() {
+  vkDestroySwapchainKHR(this->device, this->swap_chain, nullptr);
+
   vkDestroyDevice(this->device, nullptr);
 
   vkDestroySurfaceKHR(this->instance, this->surface, nullptr);

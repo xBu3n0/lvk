@@ -68,9 +68,6 @@ bool check_extensions(const std::vector<const char *> &extensions) {
   for (size_t i = 0; i < extensions.size(); ++i) {
     if (extensions_available.find(extensions[i]) ==
         extensions_available.end()) {
-      std::cerr << "\n"
-                << extensions[i] << " not available" << "\n"
-                << std::endl;
       return false;
     }
   }
@@ -84,9 +81,6 @@ bool check_device_extensions(
   for (size_t i = 0; i < extensions.size(); ++i) {
     if (device_extensions_available.find(extensions[i]) ==
         device_extensions_available.end()) {
-      std::cerr << "\n"
-                << extensions[i] << " not available" << "\n"
-                << std::endl;
       return false;
     }
   }

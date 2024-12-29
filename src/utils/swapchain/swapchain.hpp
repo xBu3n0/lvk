@@ -17,6 +17,10 @@ SwapChainSupportDetails query_swap_chain_support(VkSurfaceKHR surface,
                                                  VkPhysicalDevice device);
 VkSurfaceFormatKHR choose_swap_surface_format(
     const std::vector<VkSurfaceFormatKHR> &available_formats);
+
+VkPresentModeKHR choose_swap_present_mode(const std::vector<VkPresentModeKHR>& availablePresentModes);
+
+VkExtent2D choose_swap_extent(const VkSurfaceCapabilitiesKHR& capabilities, int width, int height);
 } // namespace swapchain
 } // namespace utils
 
