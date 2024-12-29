@@ -10,6 +10,7 @@ const bool enable_validation_layer = true;
 
 #include "device/device.hpp"
 #include "extension/extension.hpp"
+#include "file/file.hpp"
 #include "layer/layer.hpp"
 #include "messenger/messenger.hpp"
 #include "queue/queue.hpp"

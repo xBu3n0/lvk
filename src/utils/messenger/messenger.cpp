@@ -1,4 +1,5 @@
 #include "messenger.hpp"
+#include <iostream>
 
 namespace utils {
 namespace messenger {
@@ -23,6 +24,17 @@ void destroy_debug_utils_messenger_ext(
   if (func != nullptr) {
     func(instance, debugMessenger, pAllocator);
   }
+}
+
+VKAPI_ATTR VkBool32 VKAPI_CALL
+debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+              VkDebugUtilsMessageTypeFlagsEXT messageType,
+              const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData,
+              void *pUserData) {
+  std::cerr << "Message severity: " << messageSeverity << std::endl;
+  std::cerr << "validation layer: " << pCallbackData->pMessage << std::endl;
+
+  return VK_FALSE;
 }
 } // namespace messenger
 } // namespace utils

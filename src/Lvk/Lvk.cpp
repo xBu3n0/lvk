@@ -61,6 +61,9 @@ void Lvk::init_vulkan() {
 
   std::cout << "Lvk::create_image_views()" << std::endl;
   this->create_image_views();
+
+  std::cout << "Lvk::create_graphics_pipeline()" << std::endl;
+  this->create_graphics_pipeline();
 }
 
 void Lvk::create_instance() {
@@ -121,17 +124,6 @@ void Lvk::create_instance() {
   }
 }
 
-static VKAPI_ATTR VkBool32 VKAPI_CALL
-debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
-              VkDebugUtilsMessageTypeFlagsEXT messageType,
-              const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData,
-              void *pUserData) {
-  std::cerr << "Message severity: " << messageSeverity << std::endl;
-  std::cerr << "validation layer: " << pCallbackData->pMessage << std::endl;
-
-  return VK_FALSE;
-}
-
 void Lvk::create_debug_messenger() {
   if (!enable_validation_layer) {
     return;
@@ -146,7 +138,7 @@ void Lvk::create_debug_messenger() {
   create_info.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
                             VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
                             VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
-  create_info.pfnUserCallback = debugCallback;
+  create_info.pfnUserCallback = utils::messenger::debugCallback;
   create_info.pUserData = nullptr;
 
   if (utils::messenger::create_debug_utils_messenger_ext(
@@ -347,8 +339,10 @@ void Lvk::create_image_views() {
     create_info.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
     create_info.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
 
-    // Describes what the image's purpose is and which part of the image should be accessed
-    // Will be used as color targets without any mipmapping levels or multiple layers (https://vulkan-tutorial.com/Drawing_a_triangle/Presentation/Image_views)
+    // Describes what the image's purpose is and which part of the image should
+    // be accessed Will be used as color targets without any mipmapping levels
+    // or multiple layers
+    // (https://vulkan-tutorial.com/Drawing_a_triangle/Presentation/Image_views)
     create_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     create_info.subresourceRange.baseMipLevel = 0;
     create_info.subresourceRange.levelCount = 1;
@@ -360,6 +354,48 @@ void Lvk::create_image_views() {
       throw std::runtime_error("failed to create image views!");
     }
   }
+}
+
+void Lvk::create_graphics_pipeline() {
+  /** Read the shaders */
+  std::vector<char> vert_shader_code = utils::file::read_file("shaders/vert.spv");
+  std::vector<char> frag_shader_code = utils::file::read_file("shaders/frag.spv");
+
+  VkShaderModule vert_shader_module = create_shader_module(vert_shader_code);
+  VkShaderModule frag_shader_module = create_shader_module(frag_shader_code);
+
+  /** Create the pipeline */
+  VkPipelineShaderStageCreateInfo vert_shader_stage_info{};
+  vert_shader_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+  vert_shader_stage_info.stage = VK_SHADER_STAGE_VERTEX_BIT; // vertex shader
+  vert_shader_stage_info.module = vert_shader_module;
+  vert_shader_stage_info.pName = "main";
+
+  VkPipelineShaderStageCreateInfo frag_shader_stage_info{};
+  frag_shader_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+  frag_shader_stage_info.stage = VK_SHADER_STAGE_FRAGMENT_BIT; // fragment shader
+  frag_shader_stage_info.module = frag_shader_module;
+  frag_shader_stage_info.pName = "main";
+
+  VkPipelineShaderStageCreateInfo shader_stages[] = {vert_shader_stage_info, frag_shader_stage_info};
+
+  /** Destroy the shaders when the pipeline is created */
+  vkDestroyShaderModule(this->device, vert_shader_module, nullptr);
+  vkDestroyShaderModule(this->device, frag_shader_module, nullptr);
+}
+
+VkShaderModule Lvk::create_shader_module(const std::vector<char> &code) {
+  VkShaderModuleCreateInfo create_info{};
+  create_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+  create_info.codeSize = code.size();
+  create_info.pCode = reinterpret_cast<const uint32_t *>(code.data());
+
+  VkShaderModule shader_module;
+  if (vkCreateShaderModule(this->device, &create_info, nullptr, &shader_module) != VK_SUCCESS) {
+      throw std::runtime_error("failed to create shader module!");
+  }
+
+  return shader_module;
 }
 
 void Lvk::run() {

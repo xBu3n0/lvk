@@ -14,6 +14,11 @@ VkResult create_debug_utils_messenger_ext(
 void destroy_debug_utils_messenger_ext(VkInstance instance,
                                        VkDebugUtilsMessengerEXT debugMessenger,
                                        const VkAllocationCallbacks *pAllocator);
+
+VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
+    VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+    VkDebugUtilsMessageTypeFlagsEXT messageType,
+    const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData, void *pUserData);
 } // namespace messenger
 } // namespace utils
 
