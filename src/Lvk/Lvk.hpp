@@ -5,11 +5,6 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
-// #include "../Window/Window.hpp"
-
-// #include <map>
-// #include <memory>
-
 namespace lvk {
 #define msw std::map<std::string, std::unique_ptr<window::Window>>
 
@@ -72,14 +67,6 @@ private:
 
   // Fixed window until the implementation of multiple windows
   GLFWwindow *window;
-
-  //   /** Windows system */
-  // public:
-  //   void add_window(std::string name, uint32_t width, uint32_t height);
-  //   void remove_window(const std::string &name);
-
-  // private:
-  //   std::map<std::string, std::unique_ptr<window::Window>> windows;
 };
 } // namespace lvk
 

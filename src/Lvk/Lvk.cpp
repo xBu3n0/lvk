@@ -233,38 +233,11 @@ void Lvk::create_logical_device() {
   std::cout << this->present_queue << std::endl;
 }
 
-// void Lvk::add_window(std::string name, uint32_t width, uint32_t height) {
-//   this->windows.insert(
-//       {name, std::make_unique<window::Window>(name, width, height)});
-// }
-
-// void Lvk::remove_window(const std::string &name) { this->windows.erase(name);
-// }
-
 void Lvk::run() {
   while (!glfwWindowShouldClose(this->window)) {
     glfwPollEvents();
   }
 }
-
-// void Lvk::run() {
-//   std::stack<std::string> to_remove;
-
-//   while (!this->windows.empty()) {
-//     for (const auto &window : this->windows) {
-//       window.second->update();
-
-//       if (window.second->should_close()) {
-//         to_remove.push(window.first);
-//       }
-//     }
-
-//     while (!to_remove.empty()) {
-//       this->remove_window(to_remove.top());
-//       to_remove.pop();
-//     }
-//   }
-// }
 
 void Lvk::clean_up() {
   vkDestroyDevice(this->device, nullptr);
@@ -279,7 +252,6 @@ void Lvk::clean_up() {
   vkDestroyInstance(instance, nullptr);
 
   // Finalize the windows
-  // this->windows.clear();
   glfwDestroyWindow(this->window);
 
   glfwTerminate();
