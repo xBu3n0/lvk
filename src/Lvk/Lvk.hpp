@@ -42,6 +42,16 @@ private:
   void create_graphics_pipeline();
   //
   void create_framebuffers();
+  //
+  void create_command_pool();
+  //
+  void create_command_buffer();
+  //
+  void create_sync_objects();
+
+  //
+  void record_command_buffer(VkCommandBuffer command_buffer,
+                             uint32_t image_index);
 
 private:
   /** Instance of the application */
@@ -83,9 +93,18 @@ private:
 
   std::vector<VkFramebuffer> swap_chain_framebuffers;
 
+  VkCommandPool command_pool;
+  VkCommandBuffer command_buffer;
+
+  VkSemaphore image_available_semaphore;
+  VkSemaphore render_finished_semaphore;
+  VkFence in_flight_fence;
+
 public:
   // Run the application
   void run();
+  // Draw the frame
+  void draw_frame();
   // Destroy the vulkan resources and the GLFW
   ~Lvk();
 
