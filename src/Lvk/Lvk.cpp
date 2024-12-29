@@ -336,25 +336,29 @@ void Lvk::create_image_views() {
   this->swap_chain_image_views.resize(this->swap_chain_images.size());
 
   for (size_t i = 0; i < this->swap_chain_image_views.size(); i++) {
-    VkImageViewCreateInfo createInfo{};
-    createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-    createInfo.image = this->swap_chain_images[i];
+    VkImageViewCreateInfo create_info{};
+    create_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    create_info.image = this->swap_chain_images[i];
 
-    createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-    createInfo.format = this->swap_chain_image_format;
+    // How the image data should be interpreted
+    create_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    create_info.format = this->swap_chain_image_format;
 
-    createInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
-    createInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
-    createInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
-    createInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+    // swizzle the color channels
+    create_info.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+    create_info.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+    create_info.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+    create_info.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
 
-    createInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    createInfo.subresourceRange.baseMipLevel = 0;
-    createInfo.subresourceRange.levelCount = 1;
-    createInfo.subresourceRange.baseArrayLayer = 0;
-    createInfo.subresourceRange.layerCount = 1;
+    // Describes what the image's purpose is and which part of the image should be accessed
+    // Will be used as color targets without any mipmapping levels or multiple layers (https://vulkan-tutorial.com/Drawing_a_triangle/Presentation/Image_views)
+    create_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    create_info.subresourceRange.baseMipLevel = 0;
+    create_info.subresourceRange.levelCount = 1;
+    create_info.subresourceRange.baseArrayLayer = 0;
+    create_info.subresourceRange.layerCount = 1;
 
-    if (vkCreateImageView(device, &createInfo, nullptr,
+    if (vkCreateImageView(device, &create_info, nullptr,
                           &this->swap_chain_image_views[i]) != VK_SUCCESS) {
       throw std::runtime_error("failed to create image views!");
     }

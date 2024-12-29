@@ -1,6 +1,5 @@
 #include "extension.hpp"
 
-#include <iostream>
 #include <set>
 #include <string>
 #include <vector>
