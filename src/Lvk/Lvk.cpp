@@ -19,14 +19,14 @@ std::vector<const char *> device_extensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
 namespace lvk {
 Lvk::Lvk() {
   // Inicializa a janela (GLFW)
-  Lvk::init_glfw();
+  this->init_glfw();
 
   // Inicializar as variaveis do `utils`
   utils::extension::get_extensions();
   utils::layer::get_layers();
 
   std::cout << "Lvk::init_vulkan()" << std::endl;
-  Lvk::init_vulkan();
+  this->init_vulkan();
 }
 
 void Lvk::init_glfw() {
@@ -42,22 +42,25 @@ void Lvk::init_glfw() {
 
 void Lvk::init_vulkan() {
   std::cout << "Lvk::create_instance()" << std::endl;
-  Lvk::create_instance();
+  this->create_instance();
 
   std::cout << "Lvk::create_debug_messenger()" << std::endl;
-  Lvk::create_debug_messenger();
+  this->create_debug_messenger();
 
   std::cout << "Lvk::create_surface()" << std::endl;
-  Lvk::create_surface();
+  this->create_surface();
 
   std::cout << "Lvk::pick_physical_device()" << std::endl;
-  Lvk::pick_physical_device();
+  this->pick_physical_device();
 
   std::cout << "Lvk::create_logical_device()" << std::endl;
-  Lvk::create_logical_device();
+  this->create_logical_device();
 
   std::cout << "Lvk::create_swap_chain()" << std::endl;
-  Lvk::create_swap_chain();
+  this->create_swap_chain();
+
+  std::cout << "Lvk::create_image_views()" << std::endl;
+  this->create_image_views();
 }
 
 void Lvk::create_instance() {
@@ -319,12 +322,43 @@ void Lvk::create_swap_chain() {
 
   vkGetSwapchainImagesKHR(this->device, this->swap_chain, &image_count,
                           nullptr);
-  swapChainImages.resize(image_count);
+
+  this->swap_chain_images.resize(image_count);
+
   vkGetSwapchainImagesKHR(this->device, this->swap_chain, &image_count,
-                          swapChainImages.data());
+                          this->swap_chain_images.data());
 
   this->swap_chain_image_format = surface_format.format;
   this->swap_chain_extent = extent;
+}
+
+void Lvk::create_image_views() {
+  this->swap_chain_image_views.resize(this->swap_chain_images.size());
+
+  for (size_t i = 0; i < this->swap_chain_image_views.size(); i++) {
+    VkImageViewCreateInfo createInfo{};
+    createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    createInfo.image = this->swap_chain_images[i];
+
+    createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    createInfo.format = this->swap_chain_image_format;
+
+    createInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+    createInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+    createInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+    createInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+
+    createInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    createInfo.subresourceRange.baseMipLevel = 0;
+    createInfo.subresourceRange.levelCount = 1;
+    createInfo.subresourceRange.baseArrayLayer = 0;
+    createInfo.subresourceRange.layerCount = 1;
+
+    if (vkCreateImageView(device, &createInfo, nullptr,
+                          &this->swap_chain_image_views[i]) != VK_SUCCESS) {
+      throw std::runtime_error("failed to create image views!");
+    }
+  }
 }
 
 void Lvk::run() {
@@ -334,6 +368,10 @@ void Lvk::run() {
 }
 
 void Lvk::clean_up() {
+  for (auto image_view : this->swap_chain_image_views) {
+    vkDestroyImageView(this->device, image_view, nullptr);
+  }
+
   vkDestroySwapchainKHR(this->device, this->swap_chain, nullptr);
 
   vkDestroyDevice(this->device, nullptr);

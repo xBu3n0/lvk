@@ -32,6 +32,8 @@ private:
   void create_logical_device();
   //
   void create_swap_chain();
+  //
+  void create_image_views();
 
 private:
   /** Instance of the application */
@@ -61,7 +63,9 @@ private:
   VkSwapchainKHR swap_chain;
 
   // Store the handlers
-  std::vector<VkImage> swapChainImages;
+  std::vector<VkImage> swap_chain_images;
+  std::vector<VkImageView> swap_chain_image_views;
+
   VkFormat swap_chain_image_format;
   VkExtent2D swap_chain_extent;
 
