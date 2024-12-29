@@ -6,10 +6,10 @@ BUILD_DIR = ./build
 EXEC = $(BUILD_DIR)/Main
 
 # Arquivos fontes
-SRC_FILES = $(wildcard $(SRC_DIR)/**/*.cpp) ./src/Main.cpp
+SRC_FILES = $(shell find $(SRC_DIR) -name '*.cpp')
 
 # Arquivos objeto correspondentes
-OBJ_FILES = $(SRC_FILES:$(SRC_DIR)/%.cpp=$(BUILD_DIR)/%.o)
+OBJ_FILES = $(patsubst $(SRC_DIR)/%.cpp, $(BUILD_DIR)/%.o, $(SRC_FILES))
 
 # Arquivos de dependência
 DEP_FILES = $(OBJ_FILES:.o=.d)

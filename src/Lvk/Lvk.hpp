@@ -34,6 +34,7 @@ private:
   void pick_physical_device();
   //
   void create_logical_device();
+  //
 
 private:
   // Instance is the connection between your application and the Vulkan
@@ -54,6 +55,10 @@ private:
   VkQueue present_queue;
   // Queue of the logical device
   VkQueue graphics_queue;
+
+  /** Swap chain */
+  // The general purpose of the swap chain is to synchronize the presentation of
+  // images with the refresh rate of the screen
 
 public:
   // Run the application
