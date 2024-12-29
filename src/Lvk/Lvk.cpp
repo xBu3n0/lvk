@@ -31,7 +31,7 @@ Lvk::Lvk() {
 
 void Lvk::init_glfw() {
   if (!glfwInit()) {
-    exit(1);
+    throw std::runtime_error("Failed to initialize GLFW");
   }
 
   glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
@@ -86,8 +86,7 @@ void Lvk::create_instance() {
       utils::extension::get_glfw_extensions();
 
   if (!utils::extension::check_extensions(extensions)) {
-    std::cerr << "Missing extensions" << std::endl;
-    exit(1);
+    throw std::runtime_error("Missing extensions");
   }
 
   create_info.enabledExtensionCount = extensions.size();
@@ -101,8 +100,7 @@ void Lvk::create_instance() {
     std::cout << "Validation layers enabled" << std::endl;
 
     if (!utils::layer::check_validation_layers(validation_layers)) {
-      std::cerr << "Missing validation layers" << std::endl;
-      exit(1);
+      throw std::runtime_error("Missing validation layers");
     }
 
     create_info.enabledLayerCount =
@@ -119,8 +117,7 @@ void Lvk::create_instance() {
 
   std::cout << "result: " << result << std::endl;
   if (result != VK_SUCCESS) {
-    std::cerr << "Failed to create Vulkan instance" << std::endl;
-    exit(1);
+    throw std::runtime_error("Failed to create Vulkan instance");
   }
 }
 
