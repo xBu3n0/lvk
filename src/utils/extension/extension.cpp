@@ -46,7 +46,7 @@ std::set<std::string> get_device_extensions(VkPhysicalDevice physical_device) {
 
   return device_extensions;
 }
-std::vector<const char *> get_glfw_extensions() {
+std::vector<const char *> get_window_extensions() {
   uint32_t glfwExtensionCount = 0;
   const char **glfwExtensions;
 

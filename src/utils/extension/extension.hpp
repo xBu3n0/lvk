@@ -12,7 +12,7 @@ namespace utils {
 namespace extension {
 void get_extensions();
 std::set<std::string> get_device_extensions(VkPhysicalDevice physical_device);
-std::vector<const char *> get_glfw_extensions();
+std::vector<const char *> get_window_extensions();
 
 bool check_extensions(const std::vector<const char *> &extensions);
 bool check_device_extensions(

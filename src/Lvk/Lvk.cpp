@@ -28,7 +28,7 @@ void Lvk::init_glfw() {
   }
 
   glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-  glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+  glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
 
   this->window = glfwCreateWindow(800, 600, "Vulkan window", nullptr, nullptr);
 }
@@ -76,25 +76,25 @@ void Lvk::init_vulkan() {
 
 void Lvk::create_instance() {
   /** Create the Application Info (optional) */
-  std::cout << "appInfo" << std::endl;
-  VkApplicationInfo appInfo{};
+  std::cout << "app_info" << std::endl;
+  VkApplicationInfo app_info{};
 
-  appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-  appInfo.pApplicationName = "Lvk: Little VulKan";
-  appInfo.applicationVersion = VK_MAKE_VERSION(0, 0, 1);
-  appInfo.pEngineName = "VLK";
-  appInfo.engineVersion = VK_MAKE_VERSION(0, 0, 1);
-  appInfo.apiVersion = VK_API_VERSION_1_0;
+  app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+  app_info.pApplicationName = "Lvk: Little VulKan";
+  app_info.applicationVersion = VK_MAKE_VERSION(0, 0, 1);
+  app_info.pEngineName = "VLK";
+  app_info.engineVersion = VK_MAKE_VERSION(0, 0, 1);
+  app_info.apiVersion = VK_API_VERSION_1_0;
 
   /** Create the instance info */
   std::cout << "create_info" << std::endl;
   VkInstanceCreateInfo create_info{};
 
   create_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-  create_info.pApplicationInfo = &appInfo;
+  create_info.pApplicationInfo = &app_info;
 
   std::vector<const char *> extensions =
-      utils::extension::get_glfw_extensions();
+      utils::extension::get_window_extensions();
 
   if (!utils::extension::check_extensions(extensions)) {
     throw std::runtime_error("Missing extensions");
@@ -192,19 +192,19 @@ void Lvk::create_logical_device() {
   QueueFamilyIndices indices =
       utils::queue::find_queue_families(this->physical_device, this->surface);
 
-  std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
+  std::vector<VkDeviceQueueCreateInfo> queue_create_infos;
   std::set<uint32_t> uniqueQueueFamilies = {indices.graphics_family.value(),
                                             indices.present_family.value()};
 
   float queuePriority = 1.0f;
   for (uint32_t queueFamily : uniqueQueueFamilies) {
-    VkDeviceQueueCreateInfo queueCreateInfo{};
-    queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-    queueCreateInfo.queueFamilyIndex = queueFamily;
-    queueCreateInfo.queueCount = 1;
-    queueCreateInfo.pQueuePriorities = &queuePriority;
+    VkDeviceQueueCreateInfo queue_create_info{};
+    queue_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+    queue_create_info.queueFamilyIndex = queueFamily;
+    queue_create_info.queueCount = 1;
+    queue_create_info.pQueuePriorities = &queuePriority;
 
-    queueCreateInfos.push_back(queueCreateInfo);
+    queue_create_infos.push_back(queue_create_info);
   }
 
   /** Specify is the set of device features that we'll be using. */
@@ -215,8 +215,8 @@ void Lvk::create_logical_device() {
   create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
 
   create_info.queueCreateInfoCount =
-      static_cast<uint32_t>(queueCreateInfos.size());
-  create_info.pQueueCreateInfos = queueCreateInfos.data();
+      static_cast<uint32_t>(queue_create_infos.size());
+  create_info.pQueueCreateInfos = queue_create_infos.data();
 
   create_info.pEnabledFeatures = &device_features;
 
@@ -565,14 +565,14 @@ void Lvk::create_graphics_pipeline() {
   color_blending.blendConstants[3] = 0.0f; // Optional
 
   /** Pipeline layout */
-  VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
-  pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-  pipelineLayoutInfo.setLayoutCount = 0;            // Optional
-  pipelineLayoutInfo.pSetLayouts = nullptr;         // Optional
-  pipelineLayoutInfo.pushConstantRangeCount = 0;    // Optional
-  pipelineLayoutInfo.pPushConstantRanges = nullptr; // Optional
+  VkPipelineLayoutCreateInfo pipeline_layout_info{};
+  pipeline_layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+  pipeline_layout_info.setLayoutCount = 0;            // Optional
+  pipeline_layout_info.pSetLayouts = nullptr;         // Optional
+  pipeline_layout_info.pushConstantRangeCount = 0;    // Optional
+  pipeline_layout_info.pPushConstantRanges = nullptr; // Optional
 
-  if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr,
+  if (vkCreatePipelineLayout(device, &pipeline_layout_info, nullptr,
                              &this->pipeline_layout) != VK_SUCCESS) {
     throw std::runtime_error("failed to create pipeline layout!");
   }
@@ -622,16 +622,16 @@ void Lvk::create_framebuffers() {
   for (size_t i = 0; i < this->swap_chain_image_views.size(); i++) {
     VkImageView attachments[] = {this->swap_chain_image_views[i]};
 
-    VkFramebufferCreateInfo framebufferInfo{};
-    framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-    framebufferInfo.renderPass = this->render_pass;
-    framebufferInfo.attachmentCount = 1;
-    framebufferInfo.pAttachments = attachments;
-    framebufferInfo.width = this->swap_chain_extent.width;
-    framebufferInfo.height = this->swap_chain_extent.height;
-    framebufferInfo.layers = 1;
+    VkFramebufferCreateInfo framebuffer_info{};
+    framebuffer_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+    framebuffer_info.renderPass = this->render_pass;
+    framebuffer_info.attachmentCount = 1;
+    framebuffer_info.pAttachments = attachments;
+    framebuffer_info.width = this->swap_chain_extent.width;
+    framebuffer_info.height = this->swap_chain_extent.height;
+    framebuffer_info.layers = 1;
 
-    if (vkCreateFramebuffer(device, &framebufferInfo, nullptr,
+    if (vkCreateFramebuffer(device, &framebuffer_info, nullptr,
                             &this->swap_chain_framebuffers[i]) != VK_SUCCESS) {
       throw std::runtime_error("failed to create framebuffer!");
     }
@@ -642,12 +642,12 @@ void Lvk::create_command_pool() {
   QueueFamilyIndices queue_family_indices =
       utils::queue::find_queue_families(this->physical_device, this->surface);
 
-  VkCommandPoolCreateInfo poolInfo{};
-  poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-  poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-  poolInfo.queueFamilyIndex = queue_family_indices.graphics_family.value();
+  VkCommandPoolCreateInfo pool_info{};
+  pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+  pool_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+  pool_info.queueFamilyIndex = queue_family_indices.graphics_family.value();
 
-  if (vkCreateCommandPool(device, &poolInfo, nullptr, &this->command_pool) !=
+  if (vkCreateCommandPool(device, &pool_info, nullptr, &this->command_pool) !=
       VK_SUCCESS) {
     throw std::runtime_error("failed to create command pool!");
   }
@@ -695,8 +695,8 @@ void Lvk::record_command_buffer(VkCommandBuffer command_buffer,
   VkViewport viewport{};
   viewport.x = 0.0f;
   viewport.y = 0.0f;
-  viewport.width = (float)this->swap_chain_extent.width;
-  viewport.height = (float)this->swap_chain_extent.height;
+  viewport.width = (float) this->swap_chain_extent.width;
+  viewport.height = (float) this->swap_chain_extent.height;
   viewport.minDepth = 0.0f;
   viewport.maxDepth = 1.0f;
   vkCmdSetViewport(this->command_buffer, 0, 1, &viewport);
@@ -716,18 +716,18 @@ void Lvk::record_command_buffer(VkCommandBuffer command_buffer,
 }
 
 void Lvk::create_sync_objects() {
-  VkSemaphoreCreateInfo semaphoreInfo{};
-  semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+  VkSemaphoreCreateInfo semaphore_info{};
+  semaphore_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 
-  VkFenceCreateInfo fenceInfo{};
-  fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-  fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+  VkFenceCreateInfo fence_info{};
+  fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+  fence_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
-  if (vkCreateSemaphore(device, &semaphoreInfo, nullptr,
+  if (vkCreateSemaphore(device, &semaphore_info, nullptr,
                         &this->image_available_semaphore) != VK_SUCCESS ||
-      vkCreateSemaphore(device, &semaphoreInfo, nullptr,
+      vkCreateSemaphore(device, &semaphore_info, nullptr,
                         &this->render_finished_semaphore) != VK_SUCCESS ||
-      vkCreateFence(device, &fenceInfo, nullptr, &this->in_flight_fence) !=
+      vkCreateFence(device, &fence_info, nullptr, &this->in_flight_fence) !=
           VK_SUCCESS) {
     throw std::runtime_error(
         "failed to create synchronization objects for a frame!");
