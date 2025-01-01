@@ -1,3 +1,5 @@
 build
 Main
 shaders/*.spv
+example
+output.txt

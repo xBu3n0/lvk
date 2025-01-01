@@ -7,8 +7,6 @@
 #include <GLFW/glfw3.h>
 
 namespace lvk {
-#define msw std::map<std::string, std::unique_ptr<window::Window>>
-
 class Lvk {
 public:
   Lvk();
@@ -20,21 +18,21 @@ private:
   // Initialize Vulkan
   void init_vulkan();
 
-  //
+  // TODO: improve documentation
   void create_instance();
-  //
+  // TODO: improve documentation
   void create_debug_messenger();
-  //
+  // TODO: improve documentation
   void create_surface();
-  //
+  // TODO: improve documentation
   void pick_physical_device();
-  //
+  // TODO: improve documentation
   void create_logical_device();
-  //
+  // TODO: improve documentation
   void create_swap_chain();
-  //
+  // TODO: improve documentation
   void create_image_views();
-  //
+  // TODO: improve documentation
   VkShaderModule create_shader_module(const std::vector<char> &code);
   //
   void create_render_pass();
@@ -46,12 +44,11 @@ private:
   void create_command_pool();
   //
   void create_command_buffer();
-  //
-  void create_sync_objects();
-
-  //
+  // TODO: improve documentation
   void record_command_buffer(VkCommandBuffer command_buffer,
                              uint32_t image_index);
+  //
+  void create_sync_objects();
 
 private:
   /** Instance of the application */

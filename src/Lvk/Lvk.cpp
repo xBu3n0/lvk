@@ -1,8 +1,8 @@
 #include "Lvk.hpp"
 
 #include "../utils/utils.hpp"
-#include <chrono>
 #include <cmath>
+#include <cstdint>
 #include <iostream>
 
 /** Validation layers */
@@ -203,11 +203,11 @@ void Lvk::create_logical_device() {
       utils::queue::find_queue_families(this->physical_device, this->surface);
 
   std::vector<VkDeviceQueueCreateInfo> queue_create_infos;
-  std::set<uint32_t> uniqueQueueFamilies = {indices.graphics_family.value(),
-                                            indices.present_family.value()};
+  std::set<uint32_t> unique_queue_families = {indices.graphics_family.value(),
+                                              indices.present_family.value()};
 
   float queuePriority = 1.0f;
-  for (uint32_t queueFamily : uniqueQueueFamilies) {
+  for (uint32_t queueFamily : unique_queue_families) {
     VkDeviceQueueCreateInfo queue_create_info{};
     queue_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
     queue_create_info.queueFamilyIndex = queueFamily;
@@ -368,7 +368,7 @@ void Lvk::create_image_views() {
     // Describes what the image's purpose is and which part of the image should
     // be accessed Will be used as color targets without any mipmapping levels
     // or multiple layers
-    // (https://vulkan-tutorial.com/Drawing_a_triangle/Presentation/Image_views)
+    // https://vulkan-tutorial.com/Drawing_a_triangle/Presentation/Image_views
     create_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     create_info.subresourceRange.baseMipLevel = 0;
     create_info.subresourceRange.levelCount = 1;
@@ -516,8 +516,8 @@ void Lvk::create_graphics_pipeline() {
   frag_shader_stage_info.pName = "main";
 
   /** Shader stages */
-  VkPipelineShaderStageCreateInfo shader_stages[] = {vert_shader_stage_info,
-                                                     frag_shader_stage_info};
+  std::vector<VkPipelineShaderStageCreateInfo> shader_stages = {
+      vert_shader_stage_info, frag_shader_stage_info};
 
   /****************** */
   /** Fixed functions */
@@ -708,9 +708,10 @@ void Lvk::create_graphics_pipeline() {
   //
   VkGraphicsPipelineCreateInfo pipeline_info{};
   pipeline_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+
   // Shader stages
-  pipeline_info.stageCount = 2;
-  pipeline_info.pStages = shader_stages;
+  pipeline_info.stageCount = static_cast<uint32_t>(shader_stages.size());
+  pipeline_info.pStages = shader_stages.data();
 
   // Fixed function stage
   pipeline_info.pVertexInputState = &vertex_input_info;
@@ -726,10 +727,13 @@ void Lvk::create_graphics_pipeline() {
   pipeline_info.layout = this->pipeline_layout;
 
   // Render pass
+  // Define the index of the sub pass where this graphics pipeline will be used
+  // based on the `render_pass`.
   pipeline_info.renderPass = this->render_pass;
   pipeline_info.subpass = 0;
 
   // Pipeline derivatives
+  // Used to create a new pipeline by deriving from an existing pipeline.
   pipeline_info.basePipelineHandle = VK_NULL_HANDLE; // Optional
   pipeline_info.basePipelineIndex = -1;              // Optional
 
@@ -745,18 +749,23 @@ void Lvk::create_graphics_pipeline() {
 }
 
 void Lvk::create_framebuffers() {
+  // Resize the framebuffer to fit all the image views
   this->swap_chain_framebuffers.resize(this->swap_chain_image_views.size());
 
+  // Create the framebuffer for each image view
   for (size_t i = 0; i < this->swap_chain_image_views.size(); i++) {
-    VkImageView attachments[] = {this->swap_chain_image_views[i]};
-
     VkFramebufferCreateInfo framebuffer_info{};
+
     framebuffer_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+    // Specify with which renderPass the framebuffer needs to be compatible.
     framebuffer_info.renderPass = this->render_pass;
+    // Bind the `VkImageView` to the corresponding `VkAttachmentDescription` in
+    // the render pass.
     framebuffer_info.attachmentCount = 1;
-    framebuffer_info.pAttachments = attachments;
+    framebuffer_info.pAttachments = &this->swap_chain_image_views[i];
     framebuffer_info.width = this->swap_chain_extent.width;
     framebuffer_info.height = this->swap_chain_extent.height;
+    // Refer to the number of layers in image arrays.
     framebuffer_info.layers = 1;
 
     if (vkCreateFramebuffer(device, &framebuffer_info, nullptr,
@@ -772,7 +781,24 @@ void Lvk::create_command_pool() {
 
   VkCommandPoolCreateInfo pool_info{};
   pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+  // Specify how to handle the command buffers:
+  //  - VK_COMMAND_POOL_CREATE_TRANSIENT_BIT: Hint that command buffers are
+  //    rerecorded with new commands very often (may change memory allocation
+  //    behavior)
+  //  - VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT: Allow command buffers
+  //    to be rerecorded individually, without this flag they all have to be
+  //    reset together
+  // We will be recording a command buffer every frame, so we want to be able to
+  // reset and rerecord over it.
+  // `VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT`
   pool_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+
+  // Each command pool can only allocate command buffers that are submitted on a
+  // single type of queue, so we need to specify the queue family type that will
+  // be.
+
+  // We're going to record commands for drawing, so we're going to use the
+  // graphics queue family.
   pool_info.queueFamilyIndex = queue_family_indices.graphics_family.value();
 
   if (vkCreateCommandPool(device, &pool_info, nullptr, &this->command_pool) !=
@@ -782,9 +808,17 @@ void Lvk::create_command_pool() {
 }
 
 void Lvk::create_command_buffer() {
+  //
   VkCommandBufferAllocateInfo alloc_info{};
   alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
   alloc_info.commandPool = this->command_pool;
+
+  // The `level` specifies if the allocated command buffers are primary
+  // or secondary command buffers:
+  //  - VK_COMMAND_BUFFER_LEVEL_PRIMARY: Can be submitted to a queue for
+  //    execution, but cannot be called from other command buffers.
+  //  - VK_COMMAND_BUFFER_LEVEL_SECONDARY: Cannot be submitted directly, but can
+  //    be called from primary command buffers.
   alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
   alloc_info.commandBufferCount = 1;
 
@@ -794,8 +828,14 @@ void Lvk::create_command_buffer() {
   }
 }
 
+/** Writes the commands we want to execute into a command buffer. */
+// Set the  process of recording the command buffer Begin Command Buffer
+// -> Begin Render Pass -> Bind Pipeline -> Draw -> End Rebder Pass -> End
+// Command Buffer
 void Lvk::record_command_buffer(VkCommandBuffer command_buffer,
                                 uint32_t image_index) {
+  // Start the Command Buffer
+  // Will implicitly reset the `VkCommandBuffer`
   VkCommandBufferBeginInfo begin_info{};
   begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 
@@ -803,34 +843,38 @@ void Lvk::record_command_buffer(VkCommandBuffer command_buffer,
     throw std::runtime_error("failed to begin recording command buffer!");
   }
 
+  // Start the render pass
   VkRenderPassBeginInfo render_pass_info{};
   render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+  //
   render_pass_info.renderPass = this->render_pass;
+  //
   render_pass_info.framebuffer = this->swap_chain_framebuffers[image_index];
+
   render_pass_info.renderArea.offset = {0, 0};
   render_pass_info.renderArea.extent = this->swap_chain_extent;
 
-  VkClearValue clearColor = {{{0.0f, 0.0f, 0.0f, 1.0f}}};
+  // Define the clear values to use for `VK_ATTACHMENT_LOAD_OP_CLEAR`
+  VkClearValue clear_color = {{{1.0f, 1.0f, 1.0f, 1.0f}}};
   render_pass_info.clearValueCount = 1;
-  render_pass_info.pClearValues = &clearColor;
+  render_pass_info.pClearValues = &clear_color;
 
+  // Start the Cmd
+  // After beginning a render pass instance, the command buffer is ready to
+  // record the commands for the first subpass of that render pass.
   vkCmdBeginRenderPass(this->command_buffer, &render_pass_info,
                        VK_SUBPASS_CONTENTS_INLINE);
 
+  // Bind the graphics pipeline with the command buffer
   vkCmdBindPipeline(this->command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
                     this->graphics_pipeline);
 
-  auto time =
-      (double)(std::chrono::system_clock::now().time_since_epoch().count() /
-               1000000000.0);
-
+  // Specify the viewport and scissor rectangle that are dynamically set
   VkViewport viewport{};
   viewport.x = 0.0f;
   viewport.y = 0.0f;
-  viewport.width = (float)this->swap_chain_extent.width / 2 +
-                   (float)this->swap_chain_extent.width / 2 * sin(time);
-  viewport.height = (float)this->swap_chain_extent.height / 2 +
-                    (float)this->swap_chain_extent.height / 2 * cos(time);
+  viewport.width = (float)this->swap_chain_extent.width;
+  viewport.height = (float)this->swap_chain_extent.height;
   viewport.minDepth = 0.0f;
   viewport.maxDepth = 1.0f;
   vkCmdSetViewport(this->command_buffer, 0, 1, &viewport);
@@ -840,21 +884,34 @@ void Lvk::record_command_buffer(VkCommandBuffer command_buffer,
   scissor.extent = this->swap_chain_extent;
   vkCmdSetScissor(this->command_buffer, 0, 1, &scissor);
 
+  // Execute the draw command
+
+  //  - vertexCount: Specify how many vertices have to draw. (3 hardcoded).
+  //  - instanceCount: Used for instanced rendering. (1 if not doing that).
+  //  - firstVertex: Offset into the vertex buffer, defines the
+  //    lowest value of gl_VertexIndex.
+  //  - firstInstance: Offset for instanced rendering, defines the
+  //    lowest value of gl_InstanceIndex.
   vkCmdDraw(this->command_buffer, 3, 1, 0, 0);
 
+  // End the render pass
   vkCmdEndRenderPass(this->command_buffer);
 
+  // End the command buffer
   if (vkEndCommandBuffer(this->command_buffer) != VK_SUCCESS) {
     throw std::runtime_error("failed to record command buffer!");
   }
 }
 
 void Lvk::create_sync_objects() {
+  // GPU synchronization
   VkSemaphoreCreateInfo semaphore_info{};
   semaphore_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 
+  // CPU synchronization
   VkFenceCreateInfo fence_info{};
   fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+  // VK_FENCE_CREATE_SIGNALED_BIT: The fence will be created in the signaled
   fence_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
   if (vkCreateSemaphore(device, &semaphore_info, nullptr,
@@ -893,35 +950,53 @@ void Lvk::run() {
 }
 
 void Lvk::draw_frame() {
+  // Wait for the command buffer to finish execution
   vkWaitForFences(this->device, 1, &this->in_flight_fence, VK_TRUE, UINT64_MAX);
   vkResetFences(this->device, 1, &this->in_flight_fence);
 
   uint32_t image_index;
+  // They will signaled when the image is acquired
   vkAcquireNextImageKHR(this->device, this->swap_chain, UINT64_MAX,
                         this->image_available_semaphore, VK_NULL_HANDLE,
                         &image_index);
 
+  // Create the command buffer for that specific VkImage
   vkResetCommandBuffer(this->command_buffer,
                        /*VkCommandBufferResetFlagBits*/ 0);
   this->record_command_buffer(this->command_buffer, image_index);
 
+  /** Submit the command buffer */
+  // Queue submission and synchronization is configured in the `VkSubmitInfo`
+  // structure.
   VkSubmitInfo submit_info{};
   submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
-  VkSemaphore wait_semaphores[] = {this->image_available_semaphore};
-  VkPipelineStageFlags wait_stages[] = {
-      VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
-  submit_info.waitSemaphoreCount = 1;
-  submit_info.pWaitSemaphores = wait_semaphores;
-  submit_info.pWaitDstStageMask = wait_stages;
+  // The indices of `wait_semaphores` and `wait_stages` are correlated.
 
+  // Semaphores to wait
+  std::vector<VkSemaphore> wait_semaphores = {this->image_available_semaphore};
+  // What stage of the pipeline to wait at
+  std::vector<VkPipelineStageFlags> wait_stages = {
+      VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+
+  submit_info.waitSemaphoreCount =
+      static_cast<uint32_t>(wait_semaphores.size());
+  submit_info.pWaitSemaphores = wait_semaphores.data();
+  submit_info.pWaitDstStageMask = wait_stages.data();
+
+  // Specify which command buffers to actually submit for execution.
   submit_info.commandBufferCount = 1;
   submit_info.pCommandBuffers = &this->command_buffer;
 
-  VkSemaphore signal_semaphores[] = {this->render_finished_semaphore};
-  submit_info.signalSemaphoreCount = 1;
-  submit_info.pSignalSemaphores = signal_semaphores;
+  // Specify which semaphores to signal once the command buffer(s) have finished
+  // execution.
+  std::vector<VkSemaphore> signal_semaphores = {
+      this->render_finished_semaphore};
+  submit_info.signalSemaphoreCount =
+      static_cast<uint32_t>(signal_semaphores.size());
+  submit_info.pSignalSemaphores = signal_semaphores.data();
 
+  // Submit the command buffer to the graphics queue
   if (vkQueueSubmit(this->graphics_queue, 1, &submit_info,
                     this->in_flight_fence) != VK_SUCCESS) {
     throw std::runtime_error("failed to submit draw command buffer!");
@@ -929,16 +1004,19 @@ void Lvk::draw_frame() {
 
   VkPresentInfoKHR present_info{};
   present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+  // wait the command buffer to finish execution
+  present_info.waitSemaphoreCount =
+      static_cast<uint32_t>(signal_semaphores.size());
+  present_info.pWaitSemaphores = signal_semaphores.data();
 
-  present_info.waitSemaphoreCount = 1;
-  present_info.pWaitSemaphores = signal_semaphores;
-
-  VkSwapchainKHR swap_chains[] = {this->swap_chain};
-  present_info.swapchainCount = 1;
-  present_info.pSwapchains = swap_chains;
-
+  // Specify the swap chains to present images to and the index of the image for
+  // each swap chain.
+  std::vector<VkSwapchainKHR> swap_chains = {this->swap_chain};
+  present_info.swapchainCount = static_cast<uint32_t>(swap_chains.size());
+  present_info.pSwapchains = swap_chains.data();
   present_info.pImageIndices = &image_index;
 
+  // Submit the request to present the image to the swap chain.
   vkQueuePresentKHR(this->present_queue, &present_info);
 }
 
