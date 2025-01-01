@@ -60,10 +60,17 @@ VkPresentModeKHR choose_swap_present_mode(
     }
   }
 
-  return VK_PRESENT_MODE_FIFO_KHR;
+  //  - VK_PRESENT_MODE_FIFO_KHR: Enables V-Sync (FPS is limited to the
+  //    display's refresh rate).
+  //  - VK_PRESENT_MODE_MAILBOX_KHR: Enables triple buffering with V-Sync (can
+  //    reduce latency compared to FIFO).
+  //  - VK_PRESENT_MODE_IMMEDIATE_KHR: Disables V-Sync (no FPS cap but may cause
+  //    tearing).
+  return VK_PRESENT_MODE_IMMEDIATE_KHR;
 }
 
-VkExtent2D choose_swap_extent(const VkSurfaceCapabilitiesKHR &capabilities, int width, int height) {
+VkExtent2D choose_swap_extent(const VkSurfaceCapabilitiesKHR &capabilities,
+                              int width, int height) {
   if (capabilities.currentExtent.width !=
       std::numeric_limits<uint32_t>::max()) {
     return capabilities.currentExtent;

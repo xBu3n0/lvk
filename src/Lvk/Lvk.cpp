@@ -1,9 +1,14 @@
 #include "Lvk.hpp"
 
 #include "../utils/utils.hpp"
+#include <GLFW/glfw3.h>
+#include <chrono>
 #include <cmath>
 #include <cstdint>
 #include <iostream>
+
+/** Number of tasks that can be run in parallel */
+const int MAX_FRAMES_IN_FLIGHT = 2;
 
 /** Validation layers */
 extern const bool enable_validation_layer;
@@ -72,7 +77,7 @@ void Lvk::init_vulkan() {
   this->create_command_pool();
 
   std::cout << "\n\n\n -> Lvk::create_command_buffer()" << std::endl;
-  this->create_command_buffer();
+  this->create_command_buffers();
 
   std::cout << "\n\n\n -> Lvk::create_sync_objects()" << std::endl;
   this->create_sync_objects();
@@ -807,7 +812,9 @@ void Lvk::create_command_pool() {
   }
 }
 
-void Lvk::create_command_buffer() {
+void Lvk::create_command_buffers() {
+  this->command_buffers.resize(MAX_FRAMES_IN_FLIGHT);
+
   //
   VkCommandBufferAllocateInfo alloc_info{};
   alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -820,10 +827,11 @@ void Lvk::create_command_buffer() {
   //  - VK_COMMAND_BUFFER_LEVEL_SECONDARY: Cannot be submitted directly, but can
   //    be called from primary command buffers.
   alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-  alloc_info.commandBufferCount = 1;
+  alloc_info.commandBufferCount =
+      static_cast<uint32_t>(this->command_buffers.size());
 
-  if (vkAllocateCommandBuffers(device, &alloc_info, &this->command_buffer) !=
-      VK_SUCCESS) {
+  if (vkAllocateCommandBuffers(device, &alloc_info,
+                               this->command_buffers.data()) != VK_SUCCESS) {
     throw std::runtime_error("failed to allocate command buffers!");
   }
 }
@@ -839,7 +847,7 @@ void Lvk::record_command_buffer(VkCommandBuffer command_buffer,
   VkCommandBufferBeginInfo begin_info{};
   begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 
-  if (vkBeginCommandBuffer(this->command_buffer, &begin_info) != VK_SUCCESS) {
+  if (vkBeginCommandBuffer(command_buffer, &begin_info) != VK_SUCCESS) {
     throw std::runtime_error("failed to begin recording command buffer!");
   }
 
@@ -862,11 +870,11 @@ void Lvk::record_command_buffer(VkCommandBuffer command_buffer,
   // Start the Cmd
   // After beginning a render pass instance, the command buffer is ready to
   // record the commands for the first subpass of that render pass.
-  vkCmdBeginRenderPass(this->command_buffer, &render_pass_info,
+  vkCmdBeginRenderPass(command_buffer, &render_pass_info,
                        VK_SUBPASS_CONTENTS_INLINE);
 
   // Bind the graphics pipeline with the command buffer
-  vkCmdBindPipeline(this->command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+  vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
                     this->graphics_pipeline);
 
   // Specify the viewport and scissor rectangle that are dynamically set
@@ -877,12 +885,12 @@ void Lvk::record_command_buffer(VkCommandBuffer command_buffer,
   viewport.height = (float)this->swap_chain_extent.height;
   viewport.minDepth = 0.0f;
   viewport.maxDepth = 1.0f;
-  vkCmdSetViewport(this->command_buffer, 0, 1, &viewport);
+  vkCmdSetViewport(command_buffer, 0, 1, &viewport);
 
   VkRect2D scissor{};
   scissor.offset = {0, 0};
   scissor.extent = this->swap_chain_extent;
-  vkCmdSetScissor(this->command_buffer, 0, 1, &scissor);
+  vkCmdSetScissor(command_buffer, 0, 1, &scissor);
 
   // Execute the draw command
 
@@ -892,19 +900,23 @@ void Lvk::record_command_buffer(VkCommandBuffer command_buffer,
   //    lowest value of gl_VertexIndex.
   //  - firstInstance: Offset for instanced rendering, defines the
   //    lowest value of gl_InstanceIndex.
-  vkCmdDraw(this->command_buffer, 3, 1, 0, 0);
+  vkCmdDraw(command_buffer, 3, 1, 0, 0);
 
   // End the render pass
-  vkCmdEndRenderPass(this->command_buffer);
+  vkCmdEndRenderPass(command_buffer);
 
   // End the command buffer
-  if (vkEndCommandBuffer(this->command_buffer) != VK_SUCCESS) {
+  if (vkEndCommandBuffer(command_buffer) != VK_SUCCESS) {
     throw std::runtime_error("failed to record command buffer!");
   }
 }
 
 void Lvk::create_sync_objects() {
   // GPU synchronization
+  this->image_available_semaphore.resize(MAX_FRAMES_IN_FLIGHT);
+  this->render_finished_semaphore.resize(MAX_FRAMES_IN_FLIGHT);
+  this->in_flight_fence.resize(MAX_FRAMES_IN_FLIGHT);
+
   VkSemaphoreCreateInfo semaphore_info{};
   semaphore_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 
@@ -914,14 +926,16 @@ void Lvk::create_sync_objects() {
   // VK_FENCE_CREATE_SIGNALED_BIT: The fence will be created in the signaled
   fence_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
-  if (vkCreateSemaphore(device, &semaphore_info, nullptr,
-                        &this->image_available_semaphore) != VK_SUCCESS ||
-      vkCreateSemaphore(device, &semaphore_info, nullptr,
-                        &this->render_finished_semaphore) != VK_SUCCESS ||
-      vkCreateFence(device, &fence_info, nullptr, &this->in_flight_fence) !=
-          VK_SUCCESS) {
-    throw std::runtime_error(
-        "failed to create synchronization objects for a frame!");
+  for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
+    if (vkCreateSemaphore(device, &semaphore_info, nullptr,
+                          &this->image_available_semaphore[i]) != VK_SUCCESS ||
+        vkCreateSemaphore(device, &semaphore_info, nullptr,
+                          &this->render_finished_semaphore[i]) != VK_SUCCESS ||
+        vkCreateFence(device, &fence_info, nullptr,
+                      &this->in_flight_fence[i]) != VK_SUCCESS) {
+      throw std::runtime_error(
+          "failed to create synchronization objects for a frame!");
+    }
   }
 }
 
@@ -941,29 +955,42 @@ VkShaderModule Lvk::create_shader_module(const std::vector<char> &code) {
 }
 
 void Lvk::run() {
+
   while (!glfwWindowShouldClose(this->window)) {
+    auto start = std::chrono::system_clock::now();
     glfwPollEvents();
     this->draw_frame();
+    auto end = std::chrono::system_clock::now();
+
+    float wait_to_render = static_cast<float>(end.time_since_epoch().count() - start.time_since_epoch().count())/1e9;
+
+    std::cout << 1/wait_to_render << " FPS" << std::endl;
   }
 
   vkDeviceWaitIdle(this->device);
 }
 
 void Lvk::draw_frame() {
+  auto &command_buffer = this->command_buffers[0];
+
+  auto &in_flight_fence = this->in_flight_fence[0];
+  auto &image_available_semaphore = this->image_available_semaphore[0];
+  auto &render_finished_semaphore = this->render_finished_semaphore[0];
+
   // Wait for the command buffer to finish execution
-  vkWaitForFences(this->device, 1, &this->in_flight_fence, VK_TRUE, UINT64_MAX);
-  vkResetFences(this->device, 1, &this->in_flight_fence);
+  vkWaitForFences(this->device, 1, &in_flight_fence, VK_TRUE, UINT64_MAX);
+  vkResetFences(this->device, 1, &in_flight_fence);
 
   uint32_t image_index;
   // They will signaled when the image is acquired
   vkAcquireNextImageKHR(this->device, this->swap_chain, UINT64_MAX,
-                        this->image_available_semaphore, VK_NULL_HANDLE,
+                        image_available_semaphore, VK_NULL_HANDLE,
                         &image_index);
 
   // Create the command buffer for that specific VkImage
-  vkResetCommandBuffer(this->command_buffer,
+  vkResetCommandBuffer(command_buffer,
                        /*VkCommandBufferResetFlagBits*/ 0);
-  this->record_command_buffer(this->command_buffer, image_index);
+  this->record_command_buffer(command_buffer, image_index);
 
   /** Submit the command buffer */
   // Queue submission and synchronization is configured in the `VkSubmitInfo`
@@ -974,7 +1001,7 @@ void Lvk::draw_frame() {
   // The indices of `wait_semaphores` and `wait_stages` are correlated.
 
   // Semaphores to wait
-  std::vector<VkSemaphore> wait_semaphores = {this->image_available_semaphore};
+  std::vector<VkSemaphore> wait_semaphores = {image_available_semaphore};
   // What stage of the pipeline to wait at
   std::vector<VkPipelineStageFlags> wait_stages = {
       VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
@@ -986,7 +1013,7 @@ void Lvk::draw_frame() {
 
   // Specify which command buffers to actually submit for execution.
   submit_info.commandBufferCount = 1;
-  submit_info.pCommandBuffers = &this->command_buffer;
+  submit_info.pCommandBuffers = &command_buffer;
 
   // Specify which semaphores to signal once the command buffer(s) have finished
   // execution.
@@ -997,8 +1024,8 @@ void Lvk::draw_frame() {
   submit_info.pSignalSemaphores = signal_semaphores.data();
 
   // Submit the command buffer to the graphics queue
-  if (vkQueueSubmit(this->graphics_queue, 1, &submit_info,
-                    this->in_flight_fence) != VK_SUCCESS) {
+  if (vkQueueSubmit(this->graphics_queue, 1, &submit_info, in_flight_fence) !=
+      VK_SUCCESS) {
     throw std::runtime_error("failed to submit draw command buffer!");
   }
 
@@ -1021,9 +1048,13 @@ void Lvk::draw_frame() {
 }
 
 void Lvk::clean_up() {
-  vkDestroySemaphore(this->device, this->render_finished_semaphore, nullptr);
-  vkDestroySemaphore(this->device, this->image_available_semaphore, nullptr);
-  vkDestroyFence(this->device, this->in_flight_fence, nullptr);
+  for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
+    vkDestroySemaphore(this->device, this->render_finished_semaphore[i],
+                       nullptr);
+    vkDestroySemaphore(this->device, this->image_available_semaphore[i],
+                       nullptr);
+    vkDestroyFence(this->device, this->in_flight_fence[i], nullptr);
+  }
 
   // Command buffers are freed when the command pool is destroyed
   vkDestroyCommandPool(this->device, this->command_pool, nullptr);

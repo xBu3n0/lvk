@@ -43,7 +43,7 @@ private:
   //
   void create_command_pool();
   //
-  void create_command_buffer();
+  void create_command_buffers();
   // TODO: improve documentation
   void record_command_buffer(VkCommandBuffer command_buffer,
                              uint32_t image_index);
@@ -91,11 +91,11 @@ private:
   std::vector<VkFramebuffer> swap_chain_framebuffers;
 
   VkCommandPool command_pool;
-  VkCommandBuffer command_buffer;
+  std::vector<VkCommandBuffer> command_buffers;
 
-  VkSemaphore image_available_semaphore;
-  VkSemaphore render_finished_semaphore;
-  VkFence in_flight_fence;
+  std::vector<VkSemaphore> image_available_semaphore;
+  std::vector<VkSemaphore> render_finished_semaphore;
+  std::vector<VkFence> in_flight_fence;
 
 public:
   // Run the application
