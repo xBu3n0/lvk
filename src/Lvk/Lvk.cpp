@@ -2,13 +2,13 @@
 
 #include "../utils/utils.hpp"
 #include <GLFW/glfw3.h>
-#include <chrono>
 #include <cmath>
 #include <cstdint>
 #include <iostream>
 
 /** Number of tasks that can be run in parallel */
 const int MAX_FRAMES_IN_FLIGHT = 2;
+uint32_t current_frame = 0;
 
 /** Validation layers */
 extern const bool enable_validation_layer;
@@ -957,25 +957,21 @@ VkShaderModule Lvk::create_shader_module(const std::vector<char> &code) {
 void Lvk::run() {
 
   while (!glfwWindowShouldClose(this->window)) {
-    auto start = std::chrono::system_clock::now();
     glfwPollEvents();
     this->draw_frame();
-    auto end = std::chrono::system_clock::now();
-
-    float wait_to_render = static_cast<float>(end.time_since_epoch().count() - start.time_since_epoch().count())/1e9;
-
-    std::cout << 1/wait_to_render << " FPS" << std::endl;
   }
 
   vkDeviceWaitIdle(this->device);
 }
 
 void Lvk::draw_frame() {
-  auto &command_buffer = this->command_buffers[0];
+  auto &command_buffer = this->command_buffers[current_frame];
 
-  auto &in_flight_fence = this->in_flight_fence[0];
-  auto &image_available_semaphore = this->image_available_semaphore[0];
-  auto &render_finished_semaphore = this->render_finished_semaphore[0];
+  auto &in_flight_fence = this->in_flight_fence[current_frame];
+  auto &image_available_semaphore = this->image_available_semaphore[current_frame];
+  auto &render_finished_semaphore = this->render_finished_semaphore[current_frame];
+
+  current_frame = (current_frame + 1) % MAX_FRAMES_IN_FLIGHT;
 
   // Wait for the command buffer to finish execution
   vkWaitForFences(this->device, 1, &in_flight_fence, VK_TRUE, UINT64_MAX);
