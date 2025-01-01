@@ -1,5 +1,6 @@
 #include "extension.hpp"
 
+#include <iostream>
 #include <set>
 #include <string>
 #include <vector>
@@ -60,6 +61,10 @@ std::vector<const char *> get_window_extensions() {
     extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
   }
 
+  // Enabled for wiremode on the rasterizer
+  // https://docs.vulkan.org/spec/latest/appendices/extensions.html#VK_KHR_get_physical_device_properties2
+  extensions.push_back(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
+
   return extensions;
 }
 
@@ -67,6 +72,7 @@ bool check_extensions(const std::vector<const char *> &extensions) {
   for (size_t i = 0; i < extensions.size(); ++i) {
     if (extensions_available.find(extensions[i]) ==
         extensions_available.end()) {
+      std::cout << "Extension " << extensions[i] << " not found" << std::endl;
       return false;
     }
   }
@@ -80,6 +86,7 @@ bool check_device_extensions(
   for (size_t i = 0; i < extensions.size(); ++i) {
     if (device_extensions_available.find(extensions[i]) ==
         device_extensions_available.end()) {
+      std::cout << "Extension " << extensions[i] << " not found" << std::endl;
       return false;
     }
   }

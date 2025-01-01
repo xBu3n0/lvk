@@ -4,6 +4,7 @@
 #include "../queue/queue.hpp"
 #include "../swapchain/swapchain.hpp"
 
+#include <iostream>
 #include <set>
 #include <string>
 
@@ -26,6 +27,22 @@ bool is_device_suitable(VkPhysicalDevice device, VkSurfaceKHR surface,
   QueueFamilyIndices indices = queue::find_queue_families(device, surface);
   bool extension_supported = extension::check_device_extensions(
       available_device_extensions, device_extensions);
+
+  // Physical device extensions
+  std::cout << "Device: " << device_properties.deviceName << std::endl;
+  std::cout << "Device extensions: " << std::endl;
+  for (const auto &extension : available_device_extensions) {
+    std::cout << "\t" << extension << std::endl;
+  }
+
+  // Required extensions
+  std::cout << "Extensions required:" << std::endl;
+  for (const auto &extension : device_extensions) {
+    std::cout << "\t" << extension << std::endl;
+  }
+
+  // Check if the device support the extensions
+  std::cout << "Extensions supported? " << extension_supported << std::endl;
 
   /** Swap chain support (Verify only if has the swapchain extension) */
   bool swap_chain_adequate = false;

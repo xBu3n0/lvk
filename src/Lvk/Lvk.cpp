@@ -1,12 +1,16 @@
 #include "Lvk.hpp"
 
 #include "../utils/utils.hpp"
+#include <chrono>
+#include <cmath>
 #include <iostream>
 
 /** Validation layers */
 extern const bool enable_validation_layer;
 
-std::vector<const char *> device_extensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+std::vector<const char *> device_extensions = {
+    VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+    VK_EXT_EXTENDED_DYNAMIC_STATE_3_EXTENSION_NAME};
 
 /** VLK */
 namespace lvk {
@@ -34,49 +38,48 @@ void Lvk::init_glfw() {
 }
 
 void Lvk::init_vulkan() {
-  std::cout << "Lvk::create_instance()" << std::endl;
+  std::cout << "\n\n\n -> Lvk::create_instance()" << std::endl;
   this->create_instance();
 
-  std::cout << "Lvk::create_debug_messenger()" << std::endl;
+  std::cout << "\n\n\n -> Lvk::create_debug_messenger()" << std::endl;
   this->create_debug_messenger();
 
-  std::cout << "Lvk::create_surface()" << std::endl;
+  std::cout << "\n\n\n -> Lvk::create_surface()" << std::endl;
   this->create_surface();
 
-  std::cout << "Lvk::pick_physical_device()" << std::endl;
+  std::cout << "\n\n\n -> Lvk::pick_physical_device()" << std::endl;
   this->pick_physical_device();
 
-  std::cout << "Lvk::create_logical_device()" << std::endl;
+  std::cout << "\n\n\n -> Lvk::create_logical_device()" << std::endl;
   this->create_logical_device();
 
-  std::cout << "Lvk::create_swap_chain()" << std::endl;
+  std::cout << "\n\n\n -> Lvk::create_swap_chain()" << std::endl;
   this->create_swap_chain();
 
-  std::cout << "Lvk::create_image_views()" << std::endl;
+  std::cout << "\n\n\n -> Lvk::create_image_views()" << std::endl;
   this->create_image_views();
 
-  std::cout << "Lvk::create_render_pass()" << std::endl;
+  std::cout << "\n\n\n -> Lvk::create_render_pass()" << std::endl;
   this->create_render_pass();
 
-  std::cout << "Lvk::create_graphics_pipeline()" << std::endl;
+  std::cout << "\n\n\n -> Lvk::create_graphics_pipeline()" << std::endl;
   this->create_graphics_pipeline();
 
-  std::cout << "Lvk::create_framebuffers()" << std::endl;
+  std::cout << "\n\n\n -> Lvk::create_framebuffers()" << std::endl;
   this->create_framebuffers();
 
-  std::cout << "Lvk::create_command_pool()" << std::endl;
+  std::cout << "\n\n\n -> Lvk::create_command_pool()" << std::endl;
   this->create_command_pool();
 
-  std::cout << "Lvk::create_command_buffer()" << std::endl;
+  std::cout << "\n\n\n -> Lvk::create_command_buffer()" << std::endl;
   this->create_command_buffer();
 
-  std::cout << "Lvk::create_sync_objects()" << std::endl;
+  std::cout << "\n\n\n -> Lvk::create_sync_objects()" << std::endl;
   this->create_sync_objects();
 }
 
 void Lvk::create_instance() {
   /** Create the Application Info (optional) */
-  std::cout << "app_info" << std::endl;
   VkApplicationInfo app_info{};
 
   app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
@@ -87,7 +90,6 @@ void Lvk::create_instance() {
   app_info.apiVersion = VK_API_VERSION_1_0;
 
   /** Create the instance info */
-  std::cout << "create_info" << std::endl;
   VkInstanceCreateInfo create_info{};
 
   create_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
@@ -95,6 +97,11 @@ void Lvk::create_instance() {
 
   std::vector<const char *> extensions =
       utils::extension::get_window_extensions();
+
+  std::cout << "Extensions required by window:" << std::endl;
+  for (const auto &extension : extensions) {
+    std::cout << "\t" << extension << std::endl;
+  }
 
   if (!utils::extension::check_extensions(extensions)) {
     throw std::runtime_error("Missing extensions");
@@ -110,6 +117,11 @@ void Lvk::create_instance() {
   if (enable_validation_layer) {
     std::cout << "Validation layers enabled" << std::endl;
 
+    std::cout << "Validation layers required:" << std::endl;
+    for (const auto &layer : validation_layers) {
+      std::cout << "\t" << layer << std::endl;
+    }
+
     if (!utils::layer::check_validation_layers(validation_layers)) {
       throw std::runtime_error("Missing validation layers");
     }
@@ -118,16 +130,12 @@ void Lvk::create_instance() {
         static_cast<uint32_t>(validation_layers.size());
     create_info.ppEnabledLayerNames = validation_layers.data();
   } else {
+    std::cout << "Validation layers disabled" << std::endl;
     create_info.enabledLayerCount = 0;
   }
 
   /** Create the instance */
-  std::cout << "createInstance" << std::endl;
-
-  VkResult result = vkCreateInstance(&create_info, nullptr, &this->instance);
-
-  std::cout << "result: " << result << std::endl;
-  if (result != VK_SUCCESS) {
+  if (vkCreateInstance(&create_info, nullptr, &this->instance) != VK_SUCCESS) {
     throw std::runtime_error("Failed to create Vulkan instance");
   }
 }
@@ -164,15 +172,17 @@ void Lvk::create_surface() {
 }
 
 void Lvk::pick_physical_device() {
-  uint32_t deviceCount = 0;
-  vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
+  uint32_t device_count = 0;
+  vkEnumeratePhysicalDevices(instance, &device_count, nullptr);
 
-  if (deviceCount == 0) {
+  if (device_count == 0) {
     throw std::runtime_error("failed to find GPUs with Vulkan support!");
   }
 
-  std::vector<VkPhysicalDevice> devices(deviceCount);
-  vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data());
+  std::cout << "Number of physical devices: " << device_count << std::endl;
+
+  std::vector<VkPhysicalDevice> devices(device_count);
+  vkEnumeratePhysicalDevices(instance, &device_count, devices.data());
 
   for (const auto &device : devices) {
     if (utils::device::is_device_suitable(device, this->surface,
@@ -209,6 +219,10 @@ void Lvk::create_logical_device() {
 
   /** Specify is the set of device features that we'll be using. */
   VkPhysicalDeviceFeatures device_features{};
+  // Need to support `VK_EXT_EXTENDED_DYNAMIC_STATE_3_EXTENSION_NAME`
+  // https://docs.vulkan.org/spec/latest/appendices/extensions.html#VK_EXT_extended_dynamic_state3
+  // TODO: Add validation when picking the GPU.
+  device_features.fillModeNonSolid = VK_TRUE;
 
   /** Create the logical device */
   VkDeviceCreateInfo create_info{};
@@ -223,6 +237,10 @@ void Lvk::create_logical_device() {
   /** Device extension */
   // Dont need to be validated because we already checked it on
   // `is_device_suitable` when picking the physical device
+  std::cout << "Extensions enabled:" << std::endl;
+  for (const auto &extension : device_extensions) {
+    std::cout << "\t" << extension << std::endl;
+  }
   create_info.enabledExtensionCount =
       static_cast<uint32_t>(device_extensions.size());
   create_info.ppEnabledExtensionNames = device_extensions.data();
@@ -241,8 +259,8 @@ void Lvk::create_logical_device() {
   vkGetDeviceQueue(device, indices.present_family.value(), 0,
                    &this->present_queue);
 
-  std::cout << this->graphics_queue << std::endl;
-  std::cout << this->present_queue << std::endl;
+  std::cout << "Graphics queue: " << this->graphics_queue << std::endl;
+  std::cout << "Present queue: " << this->present_queue << std::endl;
 }
 
 void Lvk::create_swap_chain() {
@@ -366,35 +384,96 @@ void Lvk::create_image_views() {
 
 void Lvk::create_render_pass() {
   /** Attachment Description */
+  // Describres the framebuffer attachments that will be used while rendering:
+  //  - How many color and depth buffers there will be;
+  //  - How many samples to use for each of them;
+  //  - How their contents should be handled throughout the rendering
+  //    operations.
+
+  // Specify the format and sample of the attachment, how to handle the data
+  // before (load) and after (store) the render pass.
   VkAttachmentDescription color_attachment{};
+
+  // The format of the color attachment should match the format of the swapchain
+  // images
   color_attachment.format = this->swap_chain_image_format;
   color_attachment.samples = VK_SAMPLE_COUNT_1_BIT;
 
+  // What to do with the data in the attachment before and after rendering
+  //  - VK_ATTACHMENT_LOAD_OP_LOAD: Preserve the existing contents of the
+  //    attachment;
+  //  - VK_ATTACHMENT_LOAD_OP_CLEAR: Clear the values to a constant at the
+  //    start;
+  //  - VK_ATTACHMENT_LOAD_OP_DONT_CARE: Existing contents are undefined; we
+  //    don't care about them';
   color_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
   color_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 
-  // We don't do anything with the stencil buffer yet (don't store)
+  // TODO: describe stencil better
+  //  - VK_ATTACHMENT_STORE_OP_STORE: Rendered contents will be stored in memory
+  //    and can be read later;
+  //  - VK_ATTACHMENT_STORE_OP_DONT_CARE: Contents of the framebuffer will be
+  //    undefined after the rendering operation;
+
+  // If the attachment uses a color format (defined above), then loadOp and
+  // storeOp are used, and stencilLoadOp and stencilStoreOp are ignored
+  // https://registry.khronos.org/vulkan/specs/latest/man/html/VkAttachmentDescription.html
   color_attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
   color_attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 
+  // Layout of the pixels in memory.
+  // most common layouts:
+  //  - VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL: Images used as color
+  //    attachment;
+  //  - VK_IMAGE_LAYOUT_PRESENT_SRC_KHR: Images to be presented in the swap
+  //    chain;
+  //  - VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL: Images to be used as destination
+  //    for a memory copy operation;
+  //  - VK_IMAGE_LAYOUT_UNDEFINED: Don't care about the layout that the image
+  //    was in. Not guaranteed to preserve context.
+
+  // Specifies which layout the image will have before the render pass begins.
   color_attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+  // Specifies which layout the image will transition to when the render pass.
+
+  // We want the image to be ready for presentation using the swap chain after
+  // rendering, which is why we use `VK_IMAGE_LAYOUT_PRESENT_SRC_KHR` as
+  // finalLayout.
   color_attachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
   /** Color attachment reference */
+  // Subpass references one or more of the attachments that we've
+  // described using the structure `VkAttachmentDescription`. These references
+  // are represented by `VkAttachmentReference`.
   VkAttachmentReference color_attachment_ref{};
+
   // specifies which attachment to reference by its index in the attachment
-  // descriptions array. (VkAttachmentDescription)
-  color_attachment_ref.attachment = 0;
+  // descriptions array. (rendes_pass_info.pAttachments)
+  color_attachment_ref.attachment =
+      0; // Relate to the `VkAttachmentDescription` created above
+
+  // Specifies which layout we would like the attachment to have during a
+  // subpass that uses this reference.
   color_attachment_ref.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
   /** Subpass */
+  // Subpasses are subsequent rendering operations that depend on the contents
+  // of framebuffers in previous passes.
   VkSubpassDescription subpass{};
   subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
 
+  // (TODO: Verify this comment)
+  // The index of the attachment in this array is directly referenced from the
+  // fragment shader with the `layout(location = X) out` directive.
   subpass.colorAttachmentCount = 1;
   subpass.pColorAttachments = &color_attachment_ref;
 
   /** Render pass */
+  // Filled with an array of attachments and subpasses.
+
+  // Group rendering operations into one render pass allows Vulkan to reorder
+  // the operations and conserve memory bandwidth for possibly better
+  // performance.
   VkRenderPassCreateInfo render_pass_info{};
   render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
   render_pass_info.attachmentCount = 1;
@@ -415,10 +494,11 @@ void Lvk::create_graphics_pipeline() {
   std::vector<char> frag_shader_code =
       utils::file::read_file("shaders/frag.spv");
 
+  /** Create the shaders module */
   VkShaderModule vert_shader_module = create_shader_module(vert_shader_code);
   VkShaderModule frag_shader_module = create_shader_module(frag_shader_code);
 
-  /** Create the pipeline */
+  /** Create the vertex shader */
   VkPipelineShaderStageCreateInfo vert_shader_stage_info{};
   vert_shader_stage_info.sType =
       VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -426,6 +506,7 @@ void Lvk::create_graphics_pipeline() {
   vert_shader_stage_info.module = vert_shader_module;
   vert_shader_stage_info.pName = "main";
 
+  /** Create the frag shader */
   VkPipelineShaderStageCreateInfo frag_shader_stage_info{};
   frag_shader_stage_info.sType =
       VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -434,19 +515,20 @@ void Lvk::create_graphics_pipeline() {
   frag_shader_stage_info.module = frag_shader_module;
   frag_shader_stage_info.pName = "main";
 
+  /** Shader stages */
   VkPipelineShaderStageCreateInfo shader_stages[] = {vert_shader_stage_info,
                                                      frag_shader_stage_info};
 
-  /** Input assembly */
-  //
-  VkPipelineInputAssemblyStateCreateInfo input_assembly{};
-  input_assembly.sType =
-      VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-  input_assembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-  input_assembly.primitiveRestartEnable = VK_FALSE;
+  /****************** */
+  /** Fixed functions */
+  /****************** */
+  // Image of the pipeline:
+  // https://vulkan-tutorial.com/images/vulkan_simplified_pipeline.svg
 
   /** Vertex input */
   // Fixed for now because the vertex are written directly in the shader
+  // Will be modified on:
+  // https://vulkan-tutorial.com/Vertex_buffers/Vertex_input_description
   VkPipelineVertexInputStateCreateInfo vertex_input_info{};
   vertex_input_info.sType =
       VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
@@ -455,8 +537,26 @@ void Lvk::create_graphics_pipeline() {
   vertex_input_info.vertexAttributeDescriptionCount = 0;
   vertex_input_info.pVertexAttributeDescriptions = nullptr; // Optional
 
-  /** Set some variables that can be dynamic in the pipeline */
-  // It can be fixed or dynamic, if set to dynamic, need to be passed
+  /** Input assembly */
+  // Input assembly describe two things:
+  //  - what kind of geometry will be drawn from the vertices (topology);
+  //  - primitive restart enable or not (primitiveRestartEnable)
+  //    - This enable break the topology of _STRIP modes by using a special
+  //      index of 0xFFFF or 0xFFFFFFFF.
+  VkPipelineInputAssemblyStateCreateInfo input_assembly{};
+  input_assembly.sType =
+      VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+  input_assembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
+  input_assembly.primitiveRestartEnable = VK_FALSE;
+
+  /** Dynamic state - set some variables that can be dynamic in the pipeline */
+  // If we want to change some variable that can be modified without recreating
+  // the pipeline, we can specify here. This will cause the configuration of
+  // these values to be ignored and required to specify the data at drawing
+  // time.
+
+  // States that can be modified:
+  // https://registry.khronos.org/vulkan/specs/latest/man/html/VkDynamicState.html
   std::vector<VkDynamicState> dynamic_states = {VK_DYNAMIC_STATE_VIEWPORT,
                                                 VK_DYNAMIC_STATE_SCISSOR};
 
@@ -466,14 +566,19 @@ void Lvk::create_graphics_pipeline() {
       static_cast<uint32_t>(dynamic_states.size());
   dynamic_state.pDynamicStates = dynamic_states.data();
 
-  /** Viewport */
+  /** Viewport and Scissor */
+  // Viewport(s) and scissor rectangle(s) can either be specified as a static
+  // part of the pipeline or as a dynamic state set in the command buffer, if
+  // not set to dynamic state, they need to be declared here and passed into the
+  // ViewportState.
+
   /** Without dynamic state
     // Viewport
     VkViewport viewport{};
     viewport.x = 0.0f;
     viewport.y = 0.0f;
-    viewport.width = (float)this->swap_chain_extent.width;
-    viewport.height = (float)this->swap_chain_extent.height;
+    viewport.width = (float) this->swap_chain_extent.width;
+    viewport.height = (float) this->swap_chain_extent.height;
     viewport.minDepth = 0.0f;
     viewport.maxDepth = 1.0f;
 
@@ -482,6 +587,8 @@ void Lvk::create_graphics_pipeline() {
     scissor.offset = {0, 0};
     scissor.extent = this->swap_chain_extent;
   */
+
+  /** If used in the dynamic state, they will be set up at drawing time */
   VkPipelineViewportStateCreateInfo viewport_state{};
   viewport_state.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
   viewport_state.viewportCount = 1;
@@ -490,32 +597,47 @@ void Lvk::create_graphics_pipeline() {
   // viewport_state.pScissors = &scissor; // // Without dynamic state
 
   /** Rasterizer */
+  // Takes the geometry that is shaped by the vertices from the vertex shader
+  // and turns it into fragments to be colored by the fragment shader. Also
+  // performs:
+  //  - Depth testing
+  //  - Face culling
+  //  - Scissor test
   VkPipelineRasterizationStateCreateInfo rasterizer{};
   rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
   rasterizer.depthClampEnable = VK_FALSE;
-
+  // Discart all the geometry (no fragments are generated)
   rasterizer.rasterizerDiscardEnable = VK_FALSE;
+  // How fragments are generated for geometry (other mode than
+  // `VK_POLYGON_MODE_FILL` requires enabling a GPU feature)
+  // Ref of the polygonModes:
+  // https://registry.khronos.org/vulkan/specs/latest/man/html/VkPolygonMode.html
+  // List of common used:
+  //  - VK_POLYGON_MODE_FILL
+  //  - VK_POLYGON_MODE_LINE
+  //  - VK_POLYGON_MODE_POINT
+  // rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
+  rasterizer.polygonMode = VK_POLYGON_MODE_LINE; // Example using wireframe
 
-  rasterizer.polygonMode =
-      VK_POLYGON_MODE_FILL; // VK_POLYGON_MODE_FILL, VK_POLYGON_MODE_LINE,
-                            // VK_POLYGON_MODE_POINT (need to enable feature for
-                            // other than fill)
+  // If `lineWidth > 1.0f` need to enable feature `wideLines`
+  rasterizer.lineWidth = 1.0f;
 
-  rasterizer.lineWidth =
-      1.0f; // If lineWidth > 1.0f, need to enable feature wideLines
-
-  // Cull mode and front face
+  // Cull mode and front face (Specify what face to be cull and the orientation
+  // to be considered Front and Back face)
   rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
   rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
 
-  //
+  // Don't used for now
+  // https://vulkan-tutorial.com/en/Drawing_a_triangle/Graphics_pipeline_basics/Fixed_functions
+  //  - Last topic of Rasterizer
   rasterizer.depthBiasEnable = VK_FALSE;
   rasterizer.depthBiasConstantFactor = 0.0f; // Optional
   rasterizer.depthBiasClamp = 0.0f;          // Optional
   rasterizer.depthBiasSlopeFactor = 0.0f;    // Optional
 
   /** Multisampling */
-  // Disabled for now
+  // Combine the fragment shader results of multiple polygons that rasterize to
+  // the same pixel (requires enabling a GPU feature).
   VkPipelineMultisampleStateCreateInfo multisampling{};
   multisampling.sType =
       VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
@@ -527,13 +649,22 @@ void Lvk::create_graphics_pipeline() {
   multisampling.alphaToOneEnable = VK_FALSE;      // Optional
 
   /** Color blending */
+  // After a fragment shader has returned a color, it combined with the color
+  // that is already in the framebuffer
+
   // Configuration per attached framebuffer
   VkPipelineColorBlendAttachmentState color_blend_attachment{};
   // No blending
   color_blend_attachment.colorWriteMask =
       VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
       VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-  color_blend_attachment.blendEnable = VK_FALSE;                     // Disabled
+  // If set to true, it will apply a mask based on the `colorWriteMask` channels
+  // of the framebuffer.
+  // This are commonly used using oppacity (like glass or something like that)
+
+  // Example: This blending mode ignore whatever is in the framebuffer and just
+  // write the fragment color directly to the framebuffer.
+  color_blend_attachment.blendEnable = VK_TRUE;                      // Disabled
   color_blend_attachment.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;  // Optional
   color_blend_attachment.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO; // Optional
   color_blend_attachment.colorBlendOp = VK_BLEND_OP_ADD;             // Optional
@@ -541,30 +672,26 @@ void Lvk::create_graphics_pipeline() {
   color_blend_attachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO; // Optional
   color_blend_attachment.alphaBlendOp = VK_BLEND_OP_ADD;             // Optional
 
-  // Alpha blending
-  // color_blend_attachment.blendEnable = VK_TRUE;
-  // color_blend_attachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-  // color_blend_attachment.dstColorBlendFactor =
-  //     VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-  // color_blend_attachment.colorBlendOp = VK_BLEND_OP_ADD;
-  // color_blend_attachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-  // color_blend_attachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
-  // color_blend_attachment.alphaBlendOp = VK_BLEND_OP_ADD;
-
   // Global color blending settings
   VkPipelineColorBlendStateCreateInfo color_blending{};
   color_blending.sType =
       VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
   color_blending.logicOpEnable = VK_FALSE;
   color_blending.logicOp = VK_LOGIC_OP_COPY; // Optional
+
   color_blending.attachmentCount = 1;
   color_blending.pAttachments = &color_blend_attachment;
+
   color_blending.blendConstants[0] = 0.0f; // Optional
   color_blending.blendConstants[1] = 0.0f; // Optional
   color_blending.blendConstants[2] = 0.0f; // Optional
   color_blending.blendConstants[3] = 0.0f; // Optional
 
   /** Pipeline layout */
+  // The uniform values in the `shaders` need to be specified during pipeline
+  // creation by creating a VkPipelineLayout object.
+  // TODO: Set to a custom pipeline layout based on the shaders that will be
+  // used.
   VkPipelineLayoutCreateInfo pipeline_layout_info{};
   pipeline_layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
   pipeline_layout_info.setLayoutCount = 0;            // Optional
@@ -578,6 +705,7 @@ void Lvk::create_graphics_pipeline() {
   }
 
   /** Pipeline */
+  //
   VkGraphicsPipelineCreateInfo pipeline_info{};
   pipeline_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
   // Shader stages
@@ -692,11 +820,17 @@ void Lvk::record_command_buffer(VkCommandBuffer command_buffer,
   vkCmdBindPipeline(this->command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
                     this->graphics_pipeline);
 
+  auto time =
+      (double)(std::chrono::system_clock::now().time_since_epoch().count() /
+               1000000000.0);
+
   VkViewport viewport{};
   viewport.x = 0.0f;
   viewport.y = 0.0f;
-  viewport.width = (float) this->swap_chain_extent.width;
-  viewport.height = (float) this->swap_chain_extent.height;
+  viewport.width = (float)this->swap_chain_extent.width / 2 +
+                   (float)this->swap_chain_extent.width / 2 * sin(time);
+  viewport.height = (float)this->swap_chain_extent.height / 2 +
+                    (float)this->swap_chain_extent.height / 2 * cos(time);
   viewport.minDepth = 0.0f;
   viewport.maxDepth = 1.0f;
   vkCmdSetViewport(this->command_buffer, 0, 1, &viewport);
